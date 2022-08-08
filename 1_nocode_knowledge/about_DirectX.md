@@ -1,33 +1,39 @@
 ## COM (Component Object Model)
 
-APIをインスタンスとし、アプリケーション-インスタンス間でクエリを通しやりとりする仕組み
+APIをインスタンスとし、アプリケーション-インスタンス間でクエリを通しやりとりする仕組み<br/>
 古来よりWindowsの随所で使用されていたが、現在ではDirectXで使用されるものとされることが多い
 
 勘違いされやすいが、各言語・ランタイムのもつオブジェクト指向の型システムとは独立した概念である
 
 ### COMのインターフェース
 
-COMはインターフェースの概念をもち、COMオブジェクトはCOMインターフェースを実装している。
-オブジェクト指向におけるインターフェースであるが、COMで実装されたAPIを利用する側がCOMオブジェクトのインスタンスを直接生成することはないので、事実上インスタンス自体の直接の型である
+COMはオブジェクト指向におけるインターフェースの概念をもち、COMオブジェクトはCOMインターフェースを実装している。
+インターフェースであるが、COMで実装されたAPIを利用する側がCOMオブジェクトのインスタンスを直接生成することはないので、事実上インスタンス自体の直接の型である
 
 ### IUnknown
 
 COMの基底となるインターフェース
 （全てのCOMインターフェースはIUnknownを継承している）
 
-IUnknown自体が参照カウンタを実装することを要求しているため、全てのCOMオブジェクトはスマートポインタで管理されることになる。
-
+IUnknown自体が参照カウンタを実装することを要求しているため、全てのCOMオブジェクトは共有スマートポインタで管理されることになる。<br/>
+スマートポインタ機能のC++向けのラッパーとしてComPtrが用意されている。
 
 ## DXGI (DirectX Graphic Infrastructure)
 
-グラフィックスハードウェア（グラフィックスカードやモニター）を抽象化したCOMオブジェクトを提供するシステム
-（カーネルモードのグラフィックドライバーとの通信を行っている）
+> Microsoft DirectX Graphics Infrastructure (DXGI) handles enumerating graphics adapters, enumerating display modes, selecting buffer formats, sharing resources between processes (such as, between applications and the Desktop Window Manager (DWM)), and presenting rendered frames to a window or monitor for display.
 
-（複数のモニターにまたがる映像を出力する機能などはDXGIが提供している）
+> ough most graphics programming is done using Direct3D, you can use DXGI to present frames to a window, monitor, or other graphics component for eventual composition and display. You can also use DXGI to read the contents on a monitor.
+
+(引用元： https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/dx-graphics-dxgi)
+
++ カーネルモードのグラフィックドライバーとの通信を行う
++ 単一のグラフィックスリソースを複数のプロセスから利用できるようにする
++ ウィンドウやモニターにフレームを表示する
++ グラフィックスハードウェア（グラフィックスカードやモニター）を抽象化したCOMオブジェクトを提供する
 
 ### IDXGIFactory (COM Interface)
 
-ファクトリ：他のオブジェクトを生成する機能をもつ機能のこと
+ファクトリ：他のオブジェクトを生成する機能をもつ機能のこと<br/>
 DXGIの全ての機能の開始地点
 
 ### IDXGIAdapter (COM Interface)
@@ -45,7 +51,24 @@ DXGIの全ての機能の開始地点
 スワップチェーン：バックバッファとフロントバッファを差し替える仕組み
 （バックバッファリングについては別資料に詳細）
 
+## Direct3D12
 
+### ID3D12Device
+
+### ID3D12CommandQueue
+
+デバイスに転送するコマンドを保持するキュー
+
+### ID3D12DescriptionHeap
+
+#### ルートシグネチャ
+
+シェーダーに渡すデータを指定する
+
+#### 記述子
+
+VRAM上のリソースのメタデータ
+ルートシグネチャに必要
 
 
 ## 参考リンク
