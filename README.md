@@ -37,19 +37,22 @@ flowchart TD
   convertedIWICFormatConverter-->|IWICBitmapSource.CopyPixels|middle["raw data(BYTE[])<br/>and metadata"]
 ```
 
-### DXGI/Direct3D11/Direct2Dの初期化、画像のロード
+### GDI/DXGI/Direct3D11/Direct2Dの初期化、画像のロード
 
 > Do not mix the use of DXGI 1.0 (IDXGIFactory) and DXGI 1.1 (IDXGIFactory1) in an application. 
 
 ```mermaid
 flowchart TD
-  rawdata[/"rawdata(BYTE[])<br/>and metadata"/]
+  usingWIC["WICでの処理"]-->rawdata[/"画像データ<br/>(BYTE[])"/] & metadata[/"画像のサイズ<br/>(UINT,UINT)"/]
+  rawdata & metadata & ID3D11Device.CreateTexture2D-->ID3D11Texture2D[/"VRAM上の画像<br/>ID3D11(Texture2D)"/]
+  metadata-->CreateWindow[["CreateWindow"]]-->HWND[/"ウィンドウ<br/>(HWND)"/]
+  metadata & HWND-->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]
   CreateDXGIFactory[[CreateDXGIFactory]]-->IDXGIFactory[/"IDXGIFactory"/]
   IDXGIFactory-->EnumWarpAdapter[[EnumWarpAdapter<br/>with checking DriverType]]-->IDXGIAdapter[/"IDXGIAdapter"/]
   IDXGIFactory-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]
   D3D11CreateDeviceAndSwapChain & IDXGIAdapter-->ID3D11Device[/"ID3D11Device"/] & ID3D11SwapChain[/"ID3D11SwapChain"/]
+  DXGI_SWAP_CHAIN_DESC-->ID3D11SwapChain
   ID3D11Device-->ID3D11Device.CreateTexture2D[[CreateTexture2D]]
-  rawdata & ID3D11Device.CreateTexture2D-->ID3D11Texture2D
   
 ```
 
