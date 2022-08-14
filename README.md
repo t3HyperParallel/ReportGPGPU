@@ -27,7 +27,7 @@
 
 ```mermaid
 flowchart TD
-  cuInit[/"cuInit"/]
+  cuInit[["cuInit"]]
 ```
 
 ### WICでの画像の展開
@@ -35,29 +35,31 @@ flowchart TD
 WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。
 
 ```mermaid
-flowchart TD
-  IWICImagingFactory-->|CreateDecoderFromFileName|IWICBitmapDecoder
-  IWICBitmapDecoder-->|GetFrame|IWICBitmapFrameDecode
-  IWICBitmapFrameDecode-->checkFormat{"fomrat<br/>OK?"}
-  checkFormat-->|yes<br/>IWICBitmapSource.CopyPixels|middle
-  IWICImagingFactory-.->|CreateFormatConverter|unusedIWICFormatConverter["IWICFormatConverter<br/>(unused)"]
-  unusedIWICFormatConverter-->IWICFormatConverter.Init[["Init"]]
-  IWICFormatConverter.Init-->convertedIWICFormatConverter["IWICFormatConverter<br/>(converted)"]
-  checkFormat-->|no|convertedIWICFormatConverter
-  convertedIWICFormatConverter-->|IWICBitmapSource.CopyPixels|middle["raw data(BYTE[])<br/>and metadata"]
+graph TD
+  IWICImagingFactory[/"IWICImagingFactory"/]---IWICImagingFactory.CreateDecoderFromFileName[["CreateDecodeFromFileName"]]
+  IWICImagingFactory.CreateDecoderFromFileName-->IWICBitmapDecoder[/"IWICBitmapDecoder"/]
+  IWICBitmapDecoder---IWICBitmapDecoder.GetFrame[["GetFrame"]]
+  IWICBitmapDecoder.GetFrame-->IWICBitmapFrameDecode[/"IWICBitmapFrameDecode"/]
+  IWICBitmapFrameDecode---IWICBitmapSource.CopyPixels[["CopyPixels"]]
+  IWICBitmapSource.CopyPixels-->rawAndMetaData[/"画像の生データ(BYTE[])とストライドとデータ量"/]
+  
+  IWICImagingFactory-.-IWICImagingFactory.CreateFormatConverter[["CreateFormatConverter"]]
+  IWICImagingFactory.CreateFormatConverter-.->unusedIWICFormatConverter["IWICFormatConverter<br/>（起動前）"]
+  unusedIWICFormatConverter-.-IWICFormatConverter.Init[["Init"]]
+  IWICBitmapFrameDecode-.->|フォーマットの変換が<br/>必要な場合|convertedIWICFormatConverter
+  IWICFormatConverter.Init-.->convertedIWICFormatConverter["IWICFormatConverter<br/>（コンバート完了）"]
+  convertedIWICFormatConverter-.-IWICBitmapSource.CopyPixels
 ```
 
 ### 初期化、画像のロード
 
 > Do not mix the use of DXGI 1.0 (IDXGIFactory) and DXGI 1.1 (IDXGIFactory1) in an application.
 
-### DXGIAdapterの選定
-
 ```mermaid
-flowchart TD
+graph TD
   CreateDXGIFactory[[CreateDXGIFactory]]-->IDXGIFactory[/"IDXGIFactory"/]
   
-  IDXGIFactory-->EnumWarpAdapter[[EnumWarpAdapter<br/>with checking cuD3DGetDevice]]-->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
+  IDXGIFactory-->EnumWarpAdapter["cuD3DGetDeviceをチェックしながら<br/>EnumWarpAdapter"]-->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
   IDXGIAdapter-->ID3D11Device
   
   IDXGIFactory-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]-->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
@@ -69,5 +71,36 @@ flowchart TD
   ID3D11Device[/"ID3D11Device"/]-->ID3D11Device.CreateTexture2D[["CreateTexture2D"]]
   rawImage[/"WICで取得した画像データとサイズ<br/>(BYTE[],UINT,UINT)"/]
   rawImage & ID3D11Device.CreateTexture2D-->ID3D11Texture2D[/"VRAM上の画像<br/>(ID3D11Texture2D)"/]
-  cuGraphicsD3D11RegisterResource[["cuGraphicsD3D11RegisterResource"]] & ID3D11Texture2D-->CUgraphicsResource[/"CUgraphicsResource"/]
+  ID3D11Texture2D & cuGraphicsD3D11RegisterResource[["cuGraphicsD3D11RegisterResource"]]-->sourceCUgraphicsResource[/"VRAM上の画像<br/>(CUgraphicsResource)"/]
+  
+  IDXGISwapChain-->IDXGISwapChain.GetBuffer[["GetBufferで全てのバッファの参照を取得"]]-->buffers[/"バッファ<br/>(ID3D11Texture2D)"/]
+  cuGraphicsD3D11RegisterResource & buffers-->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
+```
+
+### リソースのCUDAでの使用方法
+
+```mermaid
+flowchart TD
+  cu_registerResource["リソースを登録してCUgraphicsResourceを取得<br/>(cuGraphicsD3D11RegisterResourceなど)"]
+  subgraph kernel
+    kernelStart[/"処理開始"\]
+    cuGraphicsMapResources[["cuGraphicsMapResources"]]
+    cuGraphicsResourceGetMappedPointer[["cuGraphicsResourceGetMappedPointerでCUdeviceptrを取得"]]
+    doKernel["カーネル処理を実行"]
+    cuGraphicsUnmapResources[["cuGraphicsUnmapResources"]]
+    kernelEnd[\"処理終了"/]
+  end
+  cuGraphicsUnregisterResource[["cuGraphicsUnregisterResource"]]
+  
+  cu_registerResource-->kernel-->cuGraphicsUnregisterResource
+  kernelStart-->cuGraphicsMapResources-->cuGraphicsResourceGetMappedPointer-->doKernel-->cuGraphicsUnmapResources-->kernelEnd
+```
+
+### 表示処理
+
+```mermaid
+flowchart TD
+  drawStart[/"開始"\]-->kernel["画像を処理してバッファに書き込み"]
+  kernel-->present[["IDXGISwapChain.Present"]]
+  present-->drawEnd[\"終了"/]
 ```
