@@ -1,5 +1,8 @@
 # ReportGPGPU
 
+このページは書きかけです
+半分は間違いが入ってます
+
 ## やること
 
 このリポジトリ自体は教科書の体ににするつもり
@@ -20,6 +23,13 @@
   
 ## フローチャート
 
+### おまじない（初期化）
+
+```mermaid
+flowchart TD
+  cuInit[/"cuInit"/]
+```
+
 ### WICでの画像の展開
 
 WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。
@@ -37,32 +47,27 @@ flowchart TD
   convertedIWICFormatConverter-->|IWICBitmapSource.CopyPixels|middle["raw data(BYTE[])<br/>and metadata"]
 ```
 
-### GDI/DXGI/Direct3D11/Direct2Dの初期化、画像のロード
+### 初期化、画像のロード
 
-> Do not mix the use of DXGI 1.0 (IDXGIFactory) and DXGI 1.1 (IDXGIFactory1) in an application. 
+> Do not mix the use of DXGI 1.0 (IDXGIFactory) and DXGI 1.1 (IDXGIFactory1) in an application.
+
+### DXGIAdapterの選定
 
 ```mermaid
 flowchart TD
-  usingWIC["WICでの処理"]-->rawdata[/"画像データ<br/>(BYTE[])"/] & metadata[/"画像のサイズ<br/>(UINT,UINT)"/]
-  rawdata & metadata & ID3D11Device.CreateTexture2D-->ID3D11Texture2D[/"VRAM上の画像<br/>ID3D11(Texture2D)"/]
-  metadata-->CreateWindow[["CreateWindow"]]-->HWND[/"ウィンドウ<br/>(HWND)"/]
-  metadata & HWND-->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]
   CreateDXGIFactory[[CreateDXGIFactory]]-->IDXGIFactory[/"IDXGIFactory"/]
-  IDXGIFactory-->EnumWarpAdapter[[EnumWarpAdapter<br/>with checking DriverType]]-->IDXGIAdapter[/"IDXGIAdapter"/]
-  IDXGIFactory-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]
-  D3D11CreateDeviceAndSwapChain & IDXGIAdapter-->ID3D11Device[/"ID3D11Device"/] & ID3D11SwapChain[/"ID3D11SwapChain"/]
-  DXGI_SWAP_CHAIN_DESC-->ID3D11SwapChain
-  ID3D11Device-->ID3D11Device.CreateTexture2D[[CreateTexture2D]]
   
-```
-
-```mermaid
-graph TD
-  ID2D1Device-->|CreateDeviceContext|ID2D1DeviceContext
-  ID2D1DeviceContext-->ID2D1DeviceContext.CreateBitmapFromDxgiSurface[[CreateBitmapFromDxgiSurface]]
-  ID2D1BitMap
-  IDXGISwapChain-->|GetBuffer|ID3D11Texture2D
-  ID3D11Texture2D-->|As|IDXGISurface
+  IDXGIFactory-->EnumWarpAdapter[[EnumWarpAdapter<br/>with checking cuD3DGetDevice]]-->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
+  IDXGIAdapter-->ID3D11Device
   
-  ID2D1DeviceContext.CreateBitmapFromDxgiSurface & IDXGISurface-->ID2D1BitMap
+  IDXGIFactory-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]-->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
+  
+  imageSize[/"WICで取得した画像のサイズ<br/>(UINT,UINT)"/]-->calcImageSize["処理後の画像サイズを計算"]
+  calcImageSize-->CreateWindow[["CreateWindow"]]-->HWND[/"ウィンドウ<br/>(HWND)"/]
+  calcImageSize & HWND-->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]-->IDXGISwapChain
+  
+  ID3D11Device[/"ID3D11Device"/]-->ID3D11Device.CreateTexture2D[["CreateTexture2D"]]
+  rawImage[/"WICで取得した画像データとサイズ<br/>(BYTE[],UINT,UINT)"/]
+  rawImage & ID3D11Device.CreateTexture2D-->ID3D11Texture2D[/"VRAM上の画像<br/>(ID3D11Texture2D)"/]
+  cuGraphicsD3D11RegisterResource[["cuGraphicsD3D11RegisterResource"]] & ID3D11Texture2D-->CUgraphicsResource[/"CUgraphicsResource"/]
 ```
