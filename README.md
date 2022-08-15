@@ -40,18 +40,20 @@ graph TD
   IWICImagingFactory.CreateDecoderFromFileName-->IWICBitmapDecoder[/"IWICBitmapDecoder"/]
   IWICBitmapDecoder---IWICBitmapDecoder.GetFrame[["GetFrame"]]
   IWICBitmapDecoder.GetFrame-->IWICBitmapFrameDecode[/"IWICBitmapFrameDecode"/]
+  IWICBitmapFrameDecode---IWICBitmapSource.GetSize[["GetSize"]]
+  IWICBitmapSource.GetSize--->size[/"画像のサイズ"/]
   IWICBitmapFrameDecode---IWICBitmapSource.CopyPixels[["CopyPixels"]]
-  IWICBitmapSource.CopyPixels-->rawAndMetaData[/"画像の生データ(BYTE[])とストライドとデータ量"/]
+  size & IWICBitmapSource.CopyPixels-->raw[/"画像の生データ(BYTE[])量"/]
   
   IWICImagingFactory-.-IWICImagingFactory.CreateFormatConverter[["CreateFormatConverter"]]
   IWICImagingFactory.CreateFormatConverter-.->unusedIWICFormatConverter["IWICFormatConverter<br/>（起動前）"]
   unusedIWICFormatConverter-.-IWICFormatConverter.Init[["Init"]]
   IWICBitmapFrameDecode-.->|フォーマットの変換が<br/>必要な場合|convertedIWICFormatConverter
   IWICFormatConverter.Init-.->convertedIWICFormatConverter["IWICFormatConverter<br/>（コンバート完了）"]
-  convertedIWICFormatConverter-.-IWICBitmapSource.CopyPixels
+  convertedIWICFormatConverter-.-IWICBitmapSource.GetSize & IWICBitmapSource.CopyPixels
 ```
 
-### 初期化、画像のロード
+### 初期化、VRAMへの画像のロード
 
 > Do not mix the use of DXGI 1.0 (IDXGIFactory) and DXGI 1.1 (IDXGIFactory1) in an application.
 
@@ -104,3 +106,8 @@ flowchart TD
   kernel-->present[["IDXGISwapChain.Present"]]
   present-->drawEnd[\"終了"/]
 ```
+
+### メインメモリへのデータの返却、WICでのエンコード
+
+WICは解像度情報も扱える
+
