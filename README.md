@@ -43,7 +43,7 @@ graph TD
   IWICBitmapFrameDecode---IWICBitmapSource.GetSize[["GetSize"]]
   IWICBitmapSource.GetSize--->size[/"画像のサイズ"/]
   IWICBitmapFrameDecode---IWICBitmapSource.CopyPixels[["CopyPixels"]]
-  size & IWICBitmapSource.CopyPixels-->raw[/"画像の生データ(BYTE[])量"/]
+  size & IWICBitmapSource.CopyPixels-->raw[/"画像の生データ(BYTE[])"/]
   
   IWICImagingFactory-.-IWICImagingFactory.CreateFormatConverter[["CreateFormatConverter"]]
   IWICImagingFactory.CreateFormatConverter-.->unusedIWICFormatConverter["IWICFormatConverter<br/>（起動前）"]
