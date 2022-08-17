@@ -58,6 +58,7 @@ DXGIの全ての機能の開始地点
 
 Direct3D11が稼働するデバイス。
 ひとつのディスプレイアダプタに複数のデバイスがあるらしい
+（IDXGIDeviceの説明に"that produce image data"とあるので、グラフィックス処理を行う実体のこと？）
 
 ### ID3D11Texture2D
 
