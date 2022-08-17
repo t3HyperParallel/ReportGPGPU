@@ -14,7 +14,7 @@
   + 画像をロード・転送
   WICで画像を転送
   + デバイスコードで処理
-  CUDA D3D11 Interpolability
+  CUDA D3D11 Interoperability
   + 表示
   Direct3D? Direct2D?
   + ストレージに出力
