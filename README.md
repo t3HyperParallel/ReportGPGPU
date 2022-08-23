@@ -12,7 +12,7 @@
 + GPUデバイスコードプログラミングについて
 + インターレース画像の生成の実装 !最優先
   + 画像をロード・転送
-  WICで画像を転送
+  WICで画像を展開、CreateTexture2Dで転送
   + デバイスコードで処理
   CUDA D3D11 Interoperability
   + 表示
