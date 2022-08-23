@@ -33,7 +33,8 @@ flowchart TD
 
 ### WICでの画像の展開
 
-WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。
+WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。<br/>
+WICはMPOに非対応なのでCreateDecoderFromFileNameできない。自前で解体してやる必要がある…
 
 ```mermaid
 graph TD
