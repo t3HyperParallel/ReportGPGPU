@@ -28,6 +28,7 @@ DirectX各インターフェイスのバージョンは適宜読み替え
 
 ```mermaid
 flowchart TD
+  CoInitialize[[CoInitialize]]
   cuInit[["cuInit"]]
 ```
 
