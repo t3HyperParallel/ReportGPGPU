@@ -16,6 +16,17 @@ using Microsoft::WRL::ComPtr;
 #define FILENAME_OUT L"MPOLoadTest1_out.png"
 #define MSG_BOX(message) MessageBox(NULL, message, TEXT("MPOLoadTest1"), MB_OK)
 
+// マクロの中にreturnを入れるのは恐らく悪教邪文なので真似しないように
+#define IF_FAILED_MESSAGE_RETURN(formula, quote)  \
+    {                                             \
+        HRESULT hr = formula;                     \
+        if (FAILED(hr))                           \
+        {                                         \
+            makeErrorMessageBox(hr, TEXT(quote)); \
+            return hr;                            \
+        }                                         \
+    }
+
 void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
 {
     WCHAR msg[128];
@@ -34,167 +45,94 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
     // COMの初期化
-    {
-        HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-        if (FAILED(hr))
-        {
-            makeErrorMessageBox(hr, TEXT("CoInitializeEx"));
-            return -1;
-        }
-    }
+    IF_FAILED_MESSAGE_RETURN(
+        CoInitializeEx(NULL, COINIT_MULTITHREADED),
+        "CoInitializedEx");
 
     // IWICImagingFactoryの生成
     ComPtr<IWICImagingFactory2> m_WICImagingFactory;
-    {
-        HRESULT hr = CoCreateInstance(
+    IF_FAILED_MESSAGE_RETURN(
+        CoCreateInstance(
             CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
-            IID_PPV_ARGS(&m_WICImagingFactory));
-        if (FAILED(hr))
-        {
-            makeErrorMessageBox(hr, TEXT("CoCreateInstance (of WICImagingFactory)"));
-            return -1;
-        }
-    }
+            IID_PPV_ARGS(&m_WICImagingFactory)),
+        "CoCreateInstance (with WICImagingFactory)");
 
     // ファイルのロードとデコード
     ComPtr<IWICBitmapFrameDecode> m_FrameDecode;
-    {
+    { // 読み込みストリームとデコーダーの生存期間管理用
         // 読み込みのストリームの生成
-        ComPtr<IWICStream> m_fsRead; // ブロックで生存期間管理
-        {
-            HRESULT hr = m_WICImagingFactory->CreateStream(&m_fsRead);
-            if (FAILED(hr))
-            {
-                makeErrorMessageBox(hr, TEXT("CreateStream (of in)"));
-                return -1;
-            }
-        }
+        ComPtr<IWICStream> m_fsRead;
+        IF_FAILED_MESSAGE_RETURN(
+            m_WICImagingFactory->CreateStream(&m_fsRead),
+            "CreateStream (of in)");
         // 初期化
-        {
-            HRESULT hr = m_fsRead->InitializeFromFilename(FILENAME_IN, GENERIC_READ);
-            if (FAILED(hr))
-            {
-                makeErrorMessageBox(hr, TEXT("InitializeFromFilename (of Stream in)"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_fsRead->InitializeFromFilename(FILENAME_IN, GENERIC_READ),
+            "InitializeFromFilename (of Stream in)");
 
         // デコーダの生成
         ComPtr<IWICBitmapDecoder> m_Decoder;
-        {
-            HRESULT hr = m_WICImagingFactory->CreateDecoder(
+        IF_FAILED_MESSAGE_RETURN(
+            m_WICImagingFactory->CreateDecoder(
                 GUID_ContainerFormatJpeg, NULL,
-                &m_Decoder);
-            if (FAILED(hr))
-            {
-                makeErrorMessageBox(hr, TEXT("CreateDecoder"));
-                return -1;
-            }
-        }
+                &m_Decoder),
+            "CreateDecoder");
         // 初期化
-        {
-            HRESULT hr = m_Decoder->Initialize(m_fsRead.Get(), WICDecodeMetadataCacheOnDemand);
-            if (FAILED(hr))
-            {
-                makeErrorMessageBox(hr, TEXT("Initialize (of Decoder)"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_Decoder->Initialize(m_fsRead.Get(), WICDecodeMetadataCacheOnDemand),
+            "Initialize (of Decoder)");
 
         // フレームの取得
-        {
-            HRESULT hr = m_Decoder->GetFrame(0, &m_FrameDecode);
-            if (FAILED(hr))
-            {
-                makeErrorMessageBox(hr, TEXT("GetFrame"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_Decoder->GetFrame(0, &m_FrameDecode),
+            "GetFrame");
     }
 
     // 書き込みのストリームの生成
     ComPtr<IWICStream> m_fsWrite;
-    {
-        HRESULT hr = m_WICImagingFactory->CreateStream(&m_fsWrite);
-        if (FAILED(hr))
-        {
-            makeErrorMessageBox(hr, TEXT("CreateStream (of out)"));
-            return -1;
-        }
-    }
+    IF_FAILED_MESSAGE_RETURN(
+        m_WICImagingFactory->CreateStream(&m_fsWrite),
+        "CreateStream (of out)");
     // 初期化
-    {
-        HRESULT hr = m_fsWrite->InitializeFromFilename(FILENAME_OUT, GENERIC_WRITE);
-        if (FAILED(hr))
-        {
-            makeErrorMessageBox(hr, TEXT("InitializeFromFilename (of out)"));
-            return -1;
-        }
-    }
+    IF_FAILED_MESSAGE_RETURN(
+        m_fsWrite->InitializeFromFilename(FILENAME_OUT, GENERIC_WRITE),
+        "InitializeFromFilename (of out)");
 
     // エンコーダの生成
     ComPtr<IWICBitmapEncoder> m_Encoder;
-    {
-        HRESULT hr = m_WICImagingFactory->CreateEncoder(
+    IF_FAILED_MESSAGE_RETURN(
+        m_WICImagingFactory->CreateEncoder(
             GUID_ContainerFormatPng, NULL,
-            &m_Encoder);
-        if (FAILED(hr))
-        {
-            makeErrorMessageBox(hr, TEXT("CreateEncoder"));
-            return -1;
-        }
-    }
-    {
-        HRESULT hr = m_Encoder->Initialize(m_fsWrite.Get(), WICBitmapEncoderNoCache);
-        if (FAILED(hr))
-        {
-            makeErrorMessageBox(hr, TEXT("Initialize (of Encoder)"));
-            return -1;
-        }
-    }
+            &m_Encoder),
+        "CreateEncoder");
+    // 初期化
+    IF_FAILED_MESSAGE_RETURN(
+        m_Encoder->Initialize(m_fsWrite.Get(), WICBitmapEncoderNoCache),
+        "Initialize (of Encoder)");
 
-    // エンコーダにデータをコピーしてコミット
+    // エンコーダにフレームを作ってデータをコピーしてフレームをコミット
     {
         // エンコーダにフレームを生成
         ComPtr<IWICBitmapFrameEncode> m_FrameEncode;
-        {
-            HRESULT hr=m_Encoder->CreateNewFrame(&m_FrameEncode,NULL);
-            if(FAILED(hr))
-            {
-                makeErrorMessageBox(hr,TEXT("CreateNewFrame"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_Encoder->CreateNewFrame(&m_FrameEncode, NULL),
+            "CreateNewFrame");
         // 初期化
-        {
-            HRESULT hr=m_FrameEncode->Initialize(NULL);
-            if(FAILED(hr))
-            {
-                makeErrorMessageBox(hr,TEXT("Initialize (of FrameEncode)"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_FrameEncode->Initialize(NULL),
+            "Initialize (of FrameEncode)");
 
         // サイズをコピー
         {
             // 取得
-            UINT width,height;
-            {
-                HRESULT hr=m_FrameDecode->GetSize(&width,&height);
-                if(FAILED(hr))
-                {
-                    makeErrorMessageBox(hr,TEXT("GetSize"));
-                    return -1;
-                }
-            }
+            UINT width, height;
+            IF_FAILED_MESSAGE_RETURN(
+                m_FrameDecode->GetSize(&width, &height),
+                "GetSize");
             // 設定
-            {
-                HRESULT hr=m_FrameEncode->SetSize(width,height);
-                if(FAILED(hr))
-                {
-                    makeErrorMessageBox(hr,TEXT("SetSize"));
-                }
-            }
+            IF_FAILED_MESSAGE_RETURN(
+                m_FrameEncode->SetSize(width, height),
+                "SetSize");
         }
         // 解像度情報をコピー
         {
@@ -204,63 +142,34 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         {
             // 取得
             WICPixelFormatGUID fmtGUID;
-            {
-                HRESULT hr=m_FrameDecode->GetPixelFormat(&fmtGUID);
-                if(FAILED(hr))
-                {
-                    makeErrorMessageBox(hr,TEXT("GetPixelFormat"));
-                    return -1;
-                }
-            }
+            IF_FAILED_MESSAGE_RETURN(
+                m_FrameDecode->GetPixelFormat(&fmtGUID),
+                "GetPixelFormat");
             // 設定
-            {
-                HRESULT hr=m_FrameEncode->SetPixelFormat(&fmtGUID);
-                if(FAILED(hr))
-                {
-                    makeErrorMessageBox(hr,TEXT("GetPixelFormat"));
-                    return -1;
-                }
-            }
+            IF_FAILED_MESSAGE_RETURN(
+                m_FrameEncode->SetPixelFormat(&fmtGUID),
+                "GetPixelFormat");
         }
         // ピクセルデータのコピー
-        {
-            HRESULT hr=m_FrameEncode->WriteSource(m_FrameDecode.Get(),NULL);
-            if(FAILED(hr))
-            {
-                makeErrorMessageBox(hr,TEXT("WriteSource"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_FrameEncode->WriteSource(m_FrameDecode.Get(), NULL),
+            "WriteSource");
 
         // フレームのコミット
-        {
-            HRESULT hr=m_FrameEncode->Commit();
-            if(FAILED(hr))
-            {
-                makeErrorMessageBox(hr,TEXT("Commit (of FrameEncode)"));
-                return -1;
-            }
-        }
+        IF_FAILED_MESSAGE_RETURN(
+            m_FrameEncode->Commit(),
+            "Commit (of FrameEncode)");
     }
 
     // エンコーダのコミット
-    {
-        HRESULT hr=m_Encoder->Commit();
-        if(FAILED(hr))
-        {
-            makeErrorMessageBox(hr,TEXT("Commit (of Encoder)"));
-            return -1;
-        }
-    }
+    IF_FAILED_MESSAGE_RETURN(
+        m_Encoder->Commit(),
+        "Commit (of Encoder)");
     // ストリームのコミット
-    {
-        HRESULT hr=m_fsWrite->Commit(STGC_DEFAULT);
-        if(FAILED(hr))
-        {
-            makeErrorMessageBox(hr,TEXT("Commit (of Stream out)"));
-            return -1;
-        }
-    }
+    IF_FAILED_MESSAGE_RETURN(
+        m_fsWrite->Commit(STGC_DEFAULT),
+        "Commit (of Stream out)"
+    );
 
     // 全て成功
     MSG_BOX(TEXT("全て成功"));
