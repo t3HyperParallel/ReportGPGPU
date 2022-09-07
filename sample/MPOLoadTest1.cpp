@@ -24,6 +24,7 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
 }
 
 // 参考文献 https://docs.microsoft.com/ja-jp/windows/win32/wic/-wic-codec-jpegmetadataencoding
+// 参考文献をベースに冒頭をストリームからの取得にした
 
 // MPOから1枚だけJpegを切り出してみる
 // そしてPNGで保存してみる
@@ -152,7 +153,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         }
     }
 
-    // エンコーダにコピー
+    // エンコーダにデータをコピーしてコミット
     {
         // エンコーダにフレームを生成
         ComPtr<IWICBitmapFrameEncode> m_FrameEncode;
@@ -169,7 +170,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             HRESULT hr=m_FrameEncode->Initialize(NULL);
             if(FAILED(hr))
             {
-                makeErrorMessageBox(hr,TEXT("Initialize (of Frame out)"));
+                makeErrorMessageBox(hr,TEXT("Initialize (of FrameEncode)"));
                 return -1;
             }
         }
@@ -220,6 +221,44 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
                     return -1;
                 }
             }
+        }
+        // ピクセルデータのコピー
+        {
+            HRESULT hr=m_FrameEncode->WriteSource(m_FrameDecode.Get(),NULL);
+            if(FAILED(hr))
+            {
+                makeErrorMessageBox(hr,TEXT("WriteSource"));
+                return -1;
+            }
+        }
+
+        // フレームのコミット
+        {
+            HRESULT hr=m_FrameEncode->Commit();
+            if(FAILED(hr))
+            {
+                makeErrorMessageBox(hr,TEXT("Commit (of FrameEncode)"));
+                return -1;
+            }
+        }
+    }
+
+    // エンコーダのコミット
+    {
+        HRESULT hr=m_Encoder->Commit();
+        if(FAILED(hr))
+        {
+            makeErrorMessageBox(hr,TEXT("Commit (of Encoder)"));
+            return -1;
+        }
+    }
+    // ストリームのコミット
+    {
+        HRESULT hr=m_fsWrite->Commit(STGC_DEFAULT);
+        if(FAILED(hr))
+        {
+            makeErrorMessageBox(hr,TEXT("Commit (of Stream out)"));
+            return -1;
         }
     }
 
