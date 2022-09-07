@@ -13,6 +13,7 @@
 using Microsoft::WRL::ComPtr;
 
 #define FILENAME_IN L"sample1.MPO"
+#define FILENAME_OUT L"MPOLoadTest1_out.png"
 #define MSG_BOX(message) MessageBox(NULL, message, TEXT("MPOLoadTest1"), MB_OK)
 
 void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
@@ -22,8 +23,12 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
     MSG_BOX(msg);
 }
 
+// 参考文献 https://docs.microsoft.com/ja-jp/windows/win32/wic/-wic-codec-jpegmetadataencoding
+
 // MPOから1枚だけJpegを切り出してみる
 // そしてPNGで保存してみる
+
+// m_ というプレフィックスを用いているが、恐らくmanagedの略
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
@@ -50,8 +55,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         }
     }
 
-    // ファイルのロード
-    ComPtr<IWICBitmapDecoder> m_Decoder;
+    // ファイルのロードとデコード
+    ComPtr<IWICBitmapFrameDecode> m_FrameDecode;
     {
         // 読み込みのストリームの生成
         ComPtr<IWICStream> m_fsRead; // ブロックで生存期間管理
@@ -74,6 +79,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         }
 
         // デコーダの生成
+        ComPtr<IWICBitmapDecoder> m_Decoder;
         {
             HRESULT hr = m_WICImagingFactory->CreateDecoder(
                 GUID_ContainerFormatJpeg, NULL,
@@ -93,6 +99,16 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
                 return -1;
             }
         }
+
+        // フレームの取得
+        {
+            HRESULT hr = m_Decoder->GetFrame(0, &m_FrameDecode);
+            if (FAILED(hr))
+            {
+                makeErrorMessageBox(hr, TEXT("GetFrame"));
+                return -1;
+            }
+        }
     }
 
     // 書き込みのストリームの生成
@@ -107,7 +123,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
     }
     // 初期化
     {
-        HRESULT hr = m_fsWrite->InitializeFromFilename(TEXT("MPOLoadTest1_out.png"), GENERIC_WRITE);
+        HRESULT hr = m_fsWrite->InitializeFromFilename(FILENAME_OUT, GENERIC_WRITE);
         if (FAILED(hr))
         {
             makeErrorMessageBox(hr, TEXT("InitializeFromFilename (of out)"));
@@ -133,6 +149,77 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         {
             makeErrorMessageBox(hr, TEXT("Initialize (of Encoder)"));
             return -1;
+        }
+    }
+
+    // エンコーダにコピー
+    {
+        // エンコーダにフレームを生成
+        ComPtr<IWICBitmapFrameEncode> m_FrameEncode;
+        {
+            HRESULT hr=m_Encoder->CreateNewFrame(&m_FrameEncode,NULL);
+            if(FAILED(hr))
+            {
+                makeErrorMessageBox(hr,TEXT("CreateNewFrame"));
+                return -1;
+            }
+        }
+        // 初期化
+        {
+            HRESULT hr=m_FrameEncode->Initialize(NULL);
+            if(FAILED(hr))
+            {
+                makeErrorMessageBox(hr,TEXT("Initialize (of Frame out)"));
+                return -1;
+            }
+        }
+
+        // サイズをコピー
+        {
+            // 取得
+            UINT width,height;
+            {
+                HRESULT hr=m_FrameDecode->GetSize(&width,&height);
+                if(FAILED(hr))
+                {
+                    makeErrorMessageBox(hr,TEXT("GetSize"));
+                    return -1;
+                }
+            }
+            // 設定
+            {
+                HRESULT hr=m_FrameEncode->SetSize(width,height);
+                if(FAILED(hr))
+                {
+                    makeErrorMessageBox(hr,TEXT("SetSize"));
+                }
+            }
+        }
+        // 解像度情報をコピー
+        {
+            //! このサンプルでは不要なのでパス
+        }
+        // ピクセルフォーマットをコピー
+        {
+            // 取得
+            WICPixelFormatGUID fmtGUID;
+            {
+                HRESULT hr=m_FrameDecode->GetPixelFormat(&fmtGUID);
+                if(FAILED(hr))
+                {
+                    makeErrorMessageBox(hr,TEXT("GetPixelFormat"));
+                    return -1;
+                }
+            }
+            // 設定
+            {
+                HRESULT hr=m_FrameEncode->SetPixelFormat(&fmtGUID);
+                if(FAILED(hr))
+                {
+                    makeErrorMessageBox(hr,TEXT("GetPixelFormat"));
+                    return -1;
+                }
+            }
         }
     }
 
