@@ -34,8 +34,9 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
     MSG_BOX(msg);
 }
 
+
 // 参考文献 https://docs.microsoft.com/ja-jp/windows/win32/wic/-wic-codec-jpegmetadataencoding
-// 参考文献をベースに冒頭をストリームからの取得にした
+// 参考文献をベースに冒頭をストリームからの取得に改変したもの
 
 // MPOから1枚だけJpegを切り出してみる
 // そしてPNGで保存してみる
@@ -83,6 +84,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
             "Initialize (of Decoder)");
 
         // フレームの取得
+        // Jpegは常にフレームは1枚のみである（参考文献によると）
         IF_FAILED_MESSAGE_RETURN(
             m_Decoder->GetFrame(0, &m_FrameDecode),
             "GetFrame");
