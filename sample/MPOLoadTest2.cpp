@@ -87,7 +87,8 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
 
     // エラー出るまでストリームから取り出す
     // 不測の事態を避ける為に上限はつけておく
-    for (size_t index = 0; index < 4; index++)
+    long long foundCount = 0;
+    for (size_t index = 0; index < 1000000; index++)
     {
         // ストリームからの読み取り
         ComPtr<IWICBitmapFrameDecode> m_FrameDecode;
@@ -106,17 +107,17 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
                     WICDecodeMetadataCacheOnDemand);
                 if (FAILED(hr))
                 {
-                    if (index = 0)
-                    {
-                        MSG_BOX(TEXT("ストリームから1枚もJpegが検出されなかった"));
-                        return hr;
-                    }
-                    else
-                    {
-                        MSG_BOX(TEXT("ストリームからJpegが検出されなくなった為停止"));
-                        return 0;
-                    }
+                    LARGE_INTEGER seekSize;
+                    seekSize.QuadPart = 2;
+                    IF_FAILED_MESSAGE_RETURN(
+                        m_fsRead->Seek(seekSize, STREAM_SEEK_CUR, NULL),
+                        "Seek");
+                    IF_FAILED_MESSAGE_RETURN(
+                        m_fsRead->Commit(STGC_DEFAULT),
+                        "Commit (at seek)");
+                    continue;
                 }
+                foundCount++;
             }
 
             // フレームの取得
@@ -211,6 +212,8 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         }
     }
     // ループ終了
-    MSG_BOX(TEXT("検出最大回数に到達"));
+    WCHAR msg[128];
+    wsprintf(msg, TEXT("検出上限に到達 %d"), foundCount);
+    MSG_BOX(msg);
     return 0;
 }
