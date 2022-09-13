@@ -34,10 +34,13 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
     }
 
 // IWICStreamの検証
+
 // ! ReadはISequentialStream::Read、SeekはIStream::Seekでありなぜかインターフェースが別
-// * ISequentialStream::Readはカレントポインタを正常に移動させる
-// * 一回もISequentialSStream::ReadをせずにIStream::Seekを行うと異常な動作をする
-// * Read
+// * Readはカレントポインタを正常に移動させる
+// * 一回もReadをせずにSeekを行うと異常な動作をする
+// * Readのcbは0でもよい、つまりダミーのReadを行うことができる
+
+// * ファイルサイズを取得するにはStatしてcbSizeを見る
 
 int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
 {
@@ -62,6 +65,17 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     IF_FAILED_MESSAGE_RETURN(
         m_fs->InitializeFromFilename(FILENAME_IN, GENERIC_READ),
         "IWICStream::InitializeFromFilename");
+
+    // メタデータの取得、表示
+    {
+        STATSTG statstg;
+        IF_FAILED_MESSAGE_RETURN(
+            m_fs->Stat(&statstg, STATFLAG_NONAME),
+            "IStream::Stat");
+        WCHAR msg[256];
+        wsprintf(msg,TEXT("LENGTH: %d"),statstg.cbSize.QuadPart/1024);
+        MSG_BOX(msg);
+    }
 
     {
         // ダミーのRead
