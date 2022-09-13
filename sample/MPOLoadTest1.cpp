@@ -13,8 +13,17 @@
 using Microsoft::WRL::ComPtr;
 
 #define FILENAME_IN L"sample1.MPO"
+
+#ifdef SECOND_IMAGE
+#define FILENAME_OUT L"MPOLoadTest1_2_out.png"
+#define WINDOW_TITLE "MPOLoadTest1_SECOND_IMAGE"
+#else
 #define FILENAME_OUT L"MPOLoadTest1_out.png"
-#define MSG_BOX(message) MessageBox(NULL, message, TEXT("MPOLoadTest1"), MB_OK)
+#define WINDOW_TITLE "MPOLoadTest1"
+#endif
+
+#define MSG_BOX(message) MessageBox(NULL, message, TEXT(WINDOW_TITLE), MB_OK)
+
 
 // マクロの中にreturnを入れるのは恐らく悪教邪文なので真似しないように
 #define IF_FAILED_MESSAGE_RETURN(formula, quote)  \
@@ -34,12 +43,13 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
     MSG_BOX(msg);
 }
 
-
 // 参考文献 https://docs.microsoft.com/ja-jp/windows/win32/wic/-wic-codec-jpegmetadataencoding
 // 参考文献をベースに冒頭をストリームからの取得に改変したもの
 
-// MPOから1枚だけJpegを切り出してみる
+// MPOから1枚だけJPEGを切り出してみる
 // そしてPNGで保存してみる
+
+// SECOND_IMAGEが定義されていると2枚目のJPEGを切り出す
 
 // m_ というプレフィックスを用いているが、恐らくmanagedの略
 
@@ -70,6 +80,17 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         IF_FAILED_MESSAGE_RETURN(
             m_fsRead->InitializeFromFilename(FILENAME_IN, GENERIC_READ),
             "InitializeFromFilename (of Stream in)");
+
+#ifdef SECOND_IMAGE
+        // 2枚目の開始位置までシーク
+        {
+            LARGE_INTEGER dLibMove;
+            dLibMove.QuadPart = 0x950E;
+            IF_FAILED_MESSAGE_RETURN(
+                m_fsRead->Seek(dLibMove, STREAM_SEEK_SET, NULL),
+                "Seek (to 2nd JPEG Container)");
+        }
+#endif
 
         // デコーダの生成
         ComPtr<IWICBitmapDecoder> m_Decoder;
@@ -139,6 +160,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
         // 解像度情報をコピー
         {
             //! このサンプルでは不要なのでパス
+            // MPOのメタデータは1枚目のJPEGコンテナにのみ格納されるので注意が必要。
         }
         // ピクセルフォーマットをコピー
         {
@@ -170,8 +192,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
     // ストリームのコミット
     IF_FAILED_MESSAGE_RETURN(
         m_fsWrite->Commit(STGC_DEFAULT),
-        "Commit (of Stream out)"
-    );
+        "Commit (of Stream out)");
 
     // 全て成功
     MSG_BOX(TEXT("全て成功"));

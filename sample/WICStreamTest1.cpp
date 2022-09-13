@@ -35,12 +35,13 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name)
 
 // IWICStreamの検証
 
-// ! ReadはISequentialStream::Read、SeekはIStream::Seekでありなぜかインターフェースが別
-// * Readはカレントポインタを正常に移動させる
-// * 一回もReadをせずにSeekを行うと異常な動作をする
-// * Readのcbは0でもよい、つまりダミーのReadを行うことができる
+// ReadはISequentialStream::Read、SeekはIStream::Seekでありなぜかインターフェースが別
 
 // * ファイルサイズを取得するにはStatしてcbSizeを見る
+
+// ULARGE_INTEGER、LARGE_INTEGERのQuadPartは64bit
+// * wsprintfの際は書式指定子の64bit版(%I64x)を使用しないと引数がズレる
+// ? 多分可変長引数の仕様のせい
 
 int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
 {
@@ -73,29 +74,19 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
             m_fs->Stat(&statstg, STATFLAG_NONAME),
             "IStream::Stat");
         WCHAR msg[256];
-        wsprintf(msg,TEXT("LENGTH: %d"),statstg.cbSize.QuadPart/1024);
+        wsprintf(msg, TEXT("LENGTH: %d KB"), statstg.cbSize.QuadPart-1 / 1024+1);
         MSG_BOX(msg);
     }
 
     {
-        // ダミーのRead
-        byte buffer[0x1000];
-        ULONG cbRead;
+        // 動かしてみる
+        LARGE_INTEGER libMove;
+        libMove.QuadPart = 0x1000;
+        ULARGE_INTEGER libNewPosition;
         IF_FAILED_MESSAGE_RETURN(
-            m_fs->Read(buffer, 0, &cbRead),
-            "ISequentialStream::Read");
-    }
+            m_fs->Seek(libMove, STREAM_SEEK_CUR, &libNewPosition),
+            "IStream::Seek");
 
-    // 動かしてみる
-    LARGE_INTEGER libMove;
-    libMove.QuadPart = 0x1000;
-    ULARGE_INTEGER libNewPosition;
-    IF_FAILED_MESSAGE_RETURN(
-        m_fs->Seek(libMove, STREAM_SEEK_CUR, &libNewPosition),
-        "IStream::Seek");
-
-    // もう一回
-    {
         // 読んでみる
         byte buffer[0x1000];
         ULONG cbRead;
@@ -105,7 +96,8 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
 
         // 表示する
         WCHAR msg[128];
-        wsprintf(msg, TEXT("Result of Read:\n At 0x0000, Value is %x\n At0x0800, Value is %x"), buffer[0], buffer[0x0800]);
+        wsprintf(msg, TEXT("libNewPosition: 0x%I64x\npv[0]: 0x%x\ncbRead: 0x%x"),libNewPosition.QuadPart, buffer[0],cbRead);
         MSG_BOX(msg);
     }
+    return 0;
 }
