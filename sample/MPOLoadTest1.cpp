@@ -54,7 +54,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int n
     ComPtr<IWICImagingFactory2> m_WICImagingFactory;
     IF_FAILED_MESSAGE_RETURN(
         CoCreateInstance(
-            CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+            CLSID_WICImagingFactory2, NULL, CLSCTX_INPROC_SERVER,
             IID_PPV_ARGS(&m_WICImagingFactory)),
         "CoCreateInstance (with WICImagingFactory)");
 
