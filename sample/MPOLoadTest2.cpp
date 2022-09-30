@@ -7,6 +7,7 @@
 #include <winerror.h>
 #include <wrl.h>
 #include <combaseapi.h>
+#include <Shlwapi.h>
 
 #include <wincodec.h>
 
@@ -54,8 +55,26 @@ void makeErrorMessageBox(HRESULT hr, LPCWSTR name, int count)
 
 // ここからが本題
 // MPOファイルには複数のjpegファイルが埋め込まれている。
-// ストリームに何度も読み込みを掛ける方法で達成可能なのか検証
-//? 1回読み込んだ後ストリームを操作しない->2枚目以降は取得できない
+
+// ? ストリームに何度も読み込みを掛ける方法で達成可能なのか検証
+// * 1回読み込んだ後のストリームでは2枚目以降は取得できない
+// ! なんかReadに失敗してる
+
+// ? 2枚目の開始位置までシークしてあるストリームを渡すとどうなる？
+//  （サンプルの1枚目の終了位置は0x1114）
+//   (サンプルMPOの2枚目の開始位置は0x950E)
+
+// ? ストリームのクローンをとったらどうなる？
+// ! そもそも1回目からクローンがサポートされてない
+
+// * フレーム数確認したらちゃんと1枚だった
+
+// ? SHCreateStreamOnFileExを使用する
+// ! 関係なさそう
+// ! Cloneも失敗した
+
+// ? 待つとどうなる？
+// ! 5秒Sleepしても駄目だった
 
 // 1のロードとデコード周りに手を加える
 // 引数は使わないのでオミット
@@ -65,13 +84,13 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     // COMの初期化
     IF_FAILED_MESSAGE_RETURN(
         CoInitializeEx(NULL, COINIT_MULTITHREADED),
-        "CoInitializedEx");
+        "CoInitializeEx");
 
     // IWICImagingFactoryの生成
     ComPtr<IWICImagingFactory2> m_WICImagingFactory;
     IF_FAILED_MESSAGE_RETURN(
         CoCreateInstance(
-            CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+            CLSID_WICImagingFactory2, NULL, CLSCTX_INPROC_SERVER,
             IID_PPV_ARGS(&m_WICImagingFactory)),
         "CoCreateInstance (with WICImagingFactory)");
 
@@ -84,136 +103,167 @@ int wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     IF_FAILED_MESSAGE_RETURN(
         m_fsRead->InitializeFromFilename(FILENAME_IN, GENERIC_READ),
         "InitializeFromFileName (of Stream in)");
-
-    // エラー出るまでストリームから取り出す
-    // 不測の事態を避ける為に上限はつけておく
-    long long foundCount = 0;
-    for (size_t index = 0; index < 1000000; index++)
+    // ファイルサイズ取得
+    ULONGLONG filesize;
     {
-        // ストリームからの読み取り
-        ComPtr<IWICBitmapFrameDecode> m_FrameDecode;
+        STATSTG stat;
+        IF_FAILED_MESSAGE_RETURN(
+            m_fsRead->Stat(&stat, STATFLAG_NONAME),
+            "Stat");
+        filesize = stat.cbSize.QuadPart;
+    }
+
+    int foundCount = 0;
+
+    for (size_t i = 0; i < 80000; i++)
+    {
+        // 開始位置を探索
+        byte buffer[2];
+        ULONG cbRead;
+        IF_FAILED_MESSAGE_RETURN(
+            m_fsRead->Read(buffer, 2, &cbRead),
+            "Read");
+        if (cbRead != 2)
         {
-            // デコーダーの取得
-            ComPtr<IWICBitmapDecoder> m_Decoder;
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
-                m_WICImagingFactory->CreateDecoder(
-                    GUID_ContainerFormatJpeg, NULL,
-                    &m_Decoder),
-                "CreateDecoder", index);
-            // 初期化、失敗したならJpeg検出失敗
+            ULARGE_INTEGER position;
+            m_fsRead->Seek({0}, STREAM_SEEK_CUR, &position);
+            if (cbRead == 0)
             {
-                HRESULT hr = m_Decoder->Initialize(
-                    m_fsRead.Get(),
-                    WICDecodeMetadataCacheOnDemand);
-                if (FAILED(hr))
-                {
-                    LARGE_INTEGER seekSize;
-                    seekSize.QuadPart = 2;
-                    IF_FAILED_MESSAGE_RETURN(
-                        m_fsRead->Seek(seekSize, STREAM_SEEK_CUR, NULL),
-                        "Seek");
-                    IF_FAILED_MESSAGE_RETURN(
-                        m_fsRead->Commit(STGC_DEFAULT),
-                        "Commit (at seek)");
-                    continue;
-                }
-                foundCount++;
+                WCHAR msg[128];
+                wsprintf(msg, TEXT("2byte読み込みに失敗\n position= %I64x\n buffer= %2x%2x"), position.QuadPart, buffer[0], buffer[1]);
+                MSG_BOX(msg);
+                return -1;
+            }
+            else if (cbRead == 1)
+            {
+                LARGE_INTEGER one;
+                one.QuadPart = 1;
+                IF_FAILED_MESSAGE_RETURN(
+                    m_fsRead->Seek(one, STREAM_SEEK_CUR, NULL),
+                    "Seek (reposition of a bit)");
+            }
+        }
+        // EOSかどうかチェック
+        if (buffer[0] == 0xff && buffer[1] == 0xd8)
+        {
+            // 検出したらシークポインタをReadで動いた分戻す
+            {
+                LARGE_INTEGER dLibMove;
+                dLibMove.QuadPart = -2;
+                IF_FAILED_MESSAGE_RETURN(
+                    m_fsRead->Seek(dLibMove, STREAM_SEEK_CUR, NULL),
+                    "Seek");
             }
 
-            // フレームの取得
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
-                m_Decoder->GetFrame(0, &m_FrameDecode),
-                "GetFrame", index);
-        }
-
-        // 書き込みストリームの生成
-        ComPtr<IWICStream> m_fsWrite;
-        IF_FAILED_MESSAGE_RETURN_INDEXED(
-            m_WICImagingFactory->CreateStream(&m_fsWrite),
-            "CreateStream", index);
-        // 名前を生成して初期化
-        {
-            WCHAR filename[256];
-            wsprintf(filename, FILENAME_OUT_COUNTED, index);
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
-                m_fsWrite->InitializeFromFilename(filename, GENERIC_WRITE),
-                "InitializeFromFilename (of Stream)", index);
-        }
-
-        // エンコード操作
-        {
-            // エンコーダを生成
-            ComPtr<IWICBitmapEncoder> m_Encoder;
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
-                m_WICImagingFactory->CreateEncoder(
-                    GUID_ContainerFormatPng, NULL,
-                    &m_Encoder),
-                "CreateEncoder", index);
+            // 出力先ファイルの生成・ストリーム取得
+            ComPtr<IWICStream> m_fsWrite;
+            IF_FAILED_MESSAGE_RETURN(
+                m_WICImagingFactory->CreateStream(&m_fsWrite),
+                "CreateStream (of out)");
             // 初期化
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
-                m_Encoder->Initialize(m_fsWrite.Get(), WICBitmapEncoderNoCache),
-                "Initialize (of Encoder)", index);
-
-            // エンコーダにフレームを作ってデータをコピーしてフレームをコミット
             {
-                //フレームを生成
+                WCHAR filename[128];
+                wsprintf(filename, FILENAME_OUT_COUNTED, foundCount);
+                IF_FAILED_MESSAGE_RETURN(
+                    m_fsWrite->InitializeFromFilename(filename, GENERIC_WRITE),
+                    "InitializeFromFilename (of out)");
+            }
+
+            // デコードフレームの取得
+            ComPtr<IWICBitmapFrameDecode> m_FrameDecode;
+            {
+                // デコーダーの取得
+                ComPtr<IWICBitmapDecoder> m_Decoder;
+                IF_FAILED_MESSAGE_RETURN(
+                    m_WICImagingFactory->CreateDecoder(
+                        GUID_ContainerFormatJpeg, NULL, &m_Decoder),
+                    "CreateDecoder");
+                // 初期化してストリームを読ませる
+                IF_FAILED_MESSAGE_RETURN(
+                    m_Decoder->Initialize(m_fsRead.Get(), WICDecodeMetadataCacheOnDemand),
+                    "Initialize (of Decoder)");
+                // 1枚目のフレームを取得
+                IF_FAILED_MESSAGE_RETURN(
+                    m_Decoder->GetFrame(0, &m_FrameDecode),
+                    "GetFrame");
+            }
+
+            // エンコーダの生成
+            ComPtr<IWICBitmapEncoder> m_Encoder;
+            IF_FAILED_MESSAGE_RETURN(
+                m_WICImagingFactory->CreateEncoder(
+                    GUID_ContainerFormatPng, NULL, &m_Encoder),
+                "CreateEncoder");
+            // 初期化
+            IF_FAILED_MESSAGE_RETURN(
+                m_Encoder->Initialize(m_fsWrite.Get(), WICBitmapEncoderNoCache),
+                "Initialize (of Encoder)");
+
+            // フレームのエンコード処理
+            {
+                // フレームを生成
                 ComPtr<IWICBitmapFrameEncode> m_FrameEncode;
-                IF_FAILED_MESSAGE_RETURN_INDEXED(
-                    m_Encoder->CreateNewFrame(&m_FrameEncode, NULL),
-                    "CreateNewFrame", index);
+                IF_FAILED_MESSAGE_RETURN(
+                    m_Encoder->CreateNewFrame(
+                        &m_FrameEncode, NULL),
+                    "CreateNewFrame");
                 // 初期化
-                IF_FAILED_MESSAGE_RETURN_INDEXED(
+                IF_FAILED_MESSAGE_RETURN(
                     m_FrameEncode->Initialize(NULL),
-                    "Initialize (of FrameEncode)", index);
+                    "Initialize (of FrameEncode)");
 
-                // サイズをコピー
+                // データコピー
+                // 画像サイズ
                 {
-                    // 取得
                     UINT width, height;
-                    IF_FAILED_MESSAGE_RETURN_INDEXED(
+                    IF_FAILED_MESSAGE_RETURN(
                         m_FrameDecode->GetSize(&width, &height),
-                        "GetSize", index);
-                    // 設定
-                    IF_FAILED_MESSAGE_RETURN_INDEXED(
+                        "GetSize");
+                    IF_FAILED_MESSAGE_RETURN(
                         m_FrameEncode->SetSize(width, height),
-                        "SetSize", index);
+                        "SetSize");
                 }
-                // ピクセルフォーマットをコピー
+                // ピクセルフォーマット
                 {
-                    // 取得
                     WICPixelFormatGUID fmtGUID;
-                    IF_FAILED_MESSAGE_RETURN_INDEXED(
+                    IF_FAILED_MESSAGE_RETURN(
                         m_FrameDecode->GetPixelFormat(&fmtGUID),
-                        "GetPixelFormat", index);
-                    // 設定
-                    IF_FAILED_MESSAGE_RETURN_INDEXED(
+                        "GetPixelFormat");
+                    IF_FAILED_MESSAGE_RETURN(
                         m_FrameEncode->SetPixelFormat(&fmtGUID),
-                        "SetPixelFormat", index);
+                        "SetPixelFormat");
                 }
-                // ピクセルデータのコピー
-                IF_FAILED_MESSAGE_RETURN_INDEXED(
+                // 画素データ
+                IF_FAILED_MESSAGE_RETURN(
                     m_FrameEncode->WriteSource(m_FrameDecode.Get(), NULL),
-                    "WriteSource", index);
+                    "WriteSource");
 
-                // フレームをコミット
-                IF_FAILED_MESSAGE_RETURN_INDEXED(
+                // コミット
+                IF_FAILED_MESSAGE_RETURN(
                     m_FrameEncode->Commit(),
-                    "Commit (of FrameEncode)", index)
+                    "Commit (of FrameEncode)")
             }
 
             // エンコーダのコミット
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
+            IF_FAILED_MESSAGE_RETURN(
                 m_Encoder->Commit(),
-                "Commit (of Encode)", index);
-            // ストリームをコミット
-            IF_FAILED_MESSAGE_RETURN_INDEXED(
+                "Commit (of Encoder)");
+            // ストリームのコミット
+            IF_FAILED_MESSAGE_RETURN(
                 m_fsWrite->Commit(STGC_DEFAULT),
-                "Commit (of Stream out)", index);
+                "Commit (of out)");
+
+            foundCount++;
         }
+        else
+            continue;
     }
-    // ループ終了
-    WCHAR msg[128];
-    wsprintf(msg, TEXT("検出上限に到達 %d"), foundCount);
-    MSG_BOX(msg);
-    return 0;
+
+    // すべて終了
+    {
+        WCHAR msg[128];
+        wsprintf(msg, TEXT("終了 検出数: %d"), foundCount);
+        MSG_BOX(msg);
+        return 0;
+    }
 }
