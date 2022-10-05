@@ -34,11 +34,18 @@ sample.MPO は2枚のJPEG画像を格納している。ファイルの冒頭か�
 
 ディレクティブを指定せずにコンパイルするとMPOLoadTest1.exeが生成される。このプログラムはMPOLoadTest1_out.pngを生成する。これは左目用画像である。
 
-2枚目の画像の位置までシークしてからデコーダーに与えると
-このプログラムもこのソースコードにプリプロセッサ処理を用いて実装してある。こちらのプログラムは右目用画像を生成する。ビルドするには次の通りのコマンドが必要。
+2枚目の画像の位置までシークしてからデコーダーに与えると、当然2枚目の画像を生成する。
+
+次の通りのコマンドでコンパイルすると、コマンドで定義されたシンボルにifdefが反応して別の内容のプログラムが生成される。MPOLoadTest1_2.exeはMPOLoadTest1_2_out.pngを生成する右目用画像を生成する。
 
 ```ps1
-cl.exe .\MPOLoadTest1.cpp user32.lib gdi32.lib /DSECOND_IMAGE /Fe:MPOLoadTest1_2.ex
+cl.exe .\MPOLoadTest1.cpp user32.lib gdi32.lib /DSECOND_IMAGE /Fe:MPOLoadTest1_2.exe
 ```
 
 （VSCodeを使っているならエディタを左右分割して2枚の画像を並べると比較しやすい）
+
+### ReuseStreamTest1
+
+MPOもそうであるが、同時にアプリケーションで使用する複数のアイテムを単一のファイルに格納することは珍しいことではない。その場合、アイテム毎にストリームの開閉を行う事は非常に無駄が多い。従って、MPOファイルへのストリームを複数のJPEGデコーダで使い回すことは当然可能であるべきで、以前WinFormsでMPOをロードしたときも同様に行えることを確認している。
+
+基本的なことはLoadTest1と同じであるが、ReuseStreamTest1はReuseStreamTest1_out_1.pngとReuseStreamTest1_out_2.pngを生成する。
