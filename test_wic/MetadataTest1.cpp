@@ -6,7 +6,6 @@
 #include <winerror.h>
 
 #include <memory>
-using std::unique_ptr;
 
 #include <wrl.h>
 using Microsoft::WRL::ComPtr;
@@ -44,7 +43,7 @@ using Microsoft::WRL::ComPtr;
     BYTE buffer[length];               \
     CHECK_HRESULT(stream->Read(buffer, length, NULL));
 
-// この記述方法であればあらゆる邪魔がない
+// この記述方法であれば環境のエンディアンがどちらでも問題ない
 ULONG UnmarshalQuadByteToLong(BYTE *bytes, BOOL isBigEndian)
 {
     if (isBigEndian)
@@ -62,6 +61,8 @@ ULONG UnmarshalDoubleByteToLong(BYTE *bytes, BOOL isBigEndian)
 #define MARSHAL_BE TRUE
 #define MARSHAL_LE FALSE
 
+// pBytesから4byteをチェックする
+// 大きい数値型にするには再配置が必要になるのでこうしている
 BOOL MatchQuadBytes(BYTE *pBytes, BYTE pattern0, BYTE pattern1, BYTE pattern2, BYTE pattern3)
 {
     return (pBytes[0] == pattern0) && (pBytes[1] == pattern1) && (pBytes[2] == pattern2) && (pBytes[3] == pattern3);
@@ -250,13 +251,4 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
             MessageBoxW(NULL, msg, L"Info", MB_OK);
         }
     }
-    /*
-        ComPtr<IWICBitmapDecoder> m_dec;
-        CHECK_HRESULT(m_WICFactory->CreateDecoder(
-            GUID_ContainerFormatJpeg, NULL, &m_dec));
-        CHECK_HRESULT(m_dec->Initialize(m_fs_in.Get(), WICDecodeMetadataCacheOnLoad));
-
-        ComPtr<IWICBitmapFrameDecode> m_frame;
-        CHECK_HRESULT(m_dec->GetFrame(0, &m_frame));
-    */
 }
