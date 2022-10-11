@@ -1,4 +1,7 @@
-﻿
+﻿#pragma once
+#ifndef __T4HP_MPO_WIC_H__
+#define __T4HP_MPO_WIC_H__
+
 #include <wrl.h>
 #include <combaseapi.h>
 #include <wincodec.h>
@@ -53,3 +56,10 @@ namespace T4HP::MPO
         ULONG numberOfImages,
         [out] ULARGE_INTEGER *paLocates);
 }
+
+
+
+
+
+
+#endif
