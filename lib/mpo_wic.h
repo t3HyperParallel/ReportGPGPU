@@ -6,12 +6,11 @@
 #include <combaseapi.h>
 #include <wincodec.h>
 
-
 #define MARSHAL_BE TRUE
 #define MARSHAL_LE FALSE
 
-#define UNMARSHAL_4BYTE(ptr, isBE)                                        \
-    (                                                                     \
+#define UNMARSHAL_4BYTE(ptr, isBE)                                                \
+    (                                                                             \
         isBE ? (((ptr)[0] << 24) | ((ptr)[1] << 16) | ((ptr)[2] << 8) | (ptr)[3]) \
              : (((ptr)[3] << 24) | ((ptr)[2] << 16) | ((ptr)[1] << 8) | (ptr)[0]))
 
@@ -28,38 +27,39 @@ namespace T4HP::MPO
 {
     enum ReadMPOError : int
     {
-        OK=0,
+        OK = 0,
         StreamError = -101,
-        JpegSOIError=-211,
-        JpegInvalidMarkerError=-201,
-        MPInvalidJpegApp2=-311,
-        MPInvalidEndianToken=-410,
-        MPIndexInformationInvalidTag=-510,
-        MPIndexInformationMismatchType=-511,
-        MPIndexInformationMismatchDefault=-512
+        JpegSOIError = -211,
+        JpegInvalidMarkerError = -201,
+        MPInvalidJpegApp2 = -311,
+        MPInvalidEndianToken = -410,
+        MPIndexInformationInvalidTag = -510,
+        MPIndexInformationMismatchType = -511,
+        MPIndexInformationMismatchCount = -512,
+        MPIndexInformationMismatchDefault = -513,
+        MPIndexInformationNotFoundTag = -501
     };
-    // SOIを与えられるとMPヘッダまでシークする
-    ReadMPOError ReadMPO_SearchMPF(IStream *fs);
 
-    // 詳しくはPart2参照
-    ReadMPOError ReadMPO_ReadMPF_Part1(
-        IStream *fs,
-        [out] ULARGE_INTEGER *pStartOfMPHeader,
-        [out] BOOL *pIsBigEndian,
-        [out] ULONG *pNumberOfImages);
-    // paLocatesに投入する配列は各自で確保してください
-    // この関数は開放の責任を負いません
-    ReadMPOError ReadMPO_ReadMPF_Part2(
-        IStream *fs,
-        ULARGE_INTEGER startOfMPHeader,
-        BOOL isBigEndian,
-        ULONG numberOfImages,
-        [out] ULARGE_INTEGER *paLocates);
+    struct GetMoreImageLocates_Info
+    {
+        IStream *SourceStream;
+        ULARGE_INTEGER StartOfMPHeader;
+        BOOLEAN IsBigEndian;
+        ULONG NumberOfImages;
+    };
+
+    //TODO こっちで実装
+    ReadMPOError GetSecondImageLocate(
+        IStream *sourceJpeg,
+        LARGE_INTEGER *pLocate,
+        GetMoreImageLocates_Info *pInfo
+    );
+/*
+    ReadMPOError GetMoreImageLocates(
+        GetMoreImageLocates_Info *pStat,
+        int count,
+        LARGE_INTEGER *paLocates
+    );*/
 }
-
-
-
-
-
 
 #endif
