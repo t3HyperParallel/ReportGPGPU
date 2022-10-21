@@ -1,4 +1,6 @@
 ﻿// とりあえず画面に何か出す
+// ほぼサンプル通り
+// 参考：https://learn.microsoft.com/ja-jp/windows/win32/learnwin32/learn-to-program-for-windows
 
 #ifndef UNICODE
 #define UNICODE
@@ -31,10 +33,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
     case WM_PAINT:
         {
+            // いらないので
+            /*
             PAINTSTRUCT ps;
             HDC hdc=BeginPaint(hwnd,&ps);
             FillRect(hdc,&ps.rcPaint,(HBRUSH)(COLOR_WINDOW+1));
-            EndPaint(hwnd,&ps);
+            EndPaint(hwnd,&ps);*/
         }
         return 0;
     default:
@@ -49,7 +53,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
-    // これが問題
     CHECK_NOTNULL_MESSAGE_HWND(RegisterClassW(&wc), L"RegisterClass");
     HWND hwnd = CreateWindowExW(
         0,
