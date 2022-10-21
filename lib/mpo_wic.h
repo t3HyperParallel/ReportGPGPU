@@ -55,6 +55,8 @@ namespace T4HP::MPO
         GetMoreImageLocates_Info *pInfo
     );
 /*
+    // そのうち実装するかも…
+    // 3枚目以降の画像を取得するやつ
     ReadMPOError GetMoreImageLocates(
         GetMoreImageLocates_Info *pStat,
         int count,
