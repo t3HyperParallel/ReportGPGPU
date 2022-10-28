@@ -4,7 +4,11 @@
 
 Visual Studio Tools より適当な Visual C ビルドツールに一時的にパスが通っている状態になるスクリプトが同梱されている。
 
-（PowerShell向けは Launch-VSDevShell.ps1 である。以下はPowerShellで操作を行う事を前提としている。）
+参考：<https://learn.microsoft.com/ja-jp/visualstudio/ide/reference/command-prompt-powershell?view=vs-2022>
+
+```ps1
+Launch-VsDevShell.ps1 -Arch amd64
+```
 
 コンパイラは cl.exe である。
 
