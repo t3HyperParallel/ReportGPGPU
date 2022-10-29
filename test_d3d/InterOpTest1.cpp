@@ -4,6 +4,7 @@
 #include <combaseapi.h>
 #include <dxgi.h>
 
+// cudaD3D11.hはd3d11.hに依存している
 #include <d3d11.h>
 
 #include <cuda.h>
