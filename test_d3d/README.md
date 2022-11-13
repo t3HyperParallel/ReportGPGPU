@@ -63,4 +63,4 @@ IDXGIFactory::EnumAdaptersはアダプタ番号に対応するディスプレイ
 cuD3D11GetDeviceはIDXGIAdapterに対応するDXGIアダプタがCUDAデバイスであるかを調べ、そうであるなら対応するCUdeviceを与える。
 
 Windows8以降では通常アダプタ0はMicrosoft Basic Render Driverであり、1以降にビデオカードが配置されている。
-したがって、Windows11でiGPUとGeForce GTX 1650が搭載されている筆者環境ではDXGIデバイスは3つ、CUDAデバイスは1つとなる。
+したがって、Windows11でiGPUとGeForce GTX 1650 Tiが搭載されている筆者環境ではDXGIデバイスは3つ、CUDAデバイスは1つとなる。
