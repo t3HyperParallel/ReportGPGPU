@@ -31,7 +31,7 @@ TeslaはHPC専用で映像出せないからあっても無意味
 
 ## 速度の比較
 
-### nvJPEG vs WICを含めた比較
+### ~~nvJPEG vs WICを含めた比較~~
 
 1. デバイスでJPEGの展開を行う
   1.1. nvJPEGでデバイスメモリへ展開
@@ -44,7 +44,8 @@ TeslaはHPC専用で映像出せないからあっても無意味
   1.3. Direct3D11でデバイスへ転送
   1.4. Direct3D11で画面に表示
 
-NVIDIAが公表しているnvJPEGの性能は多数のJPEGファイルを連続で展開するベンチマークであるため、画面に表示しきれる程度の量の画像では高速化に貢献しづらいのではないか。
+~~NVIDIAが公表しているnvJPEGの性能は多数のJPEGファイルを連続で展開するベンチマークであるため、画面に表示しきれる程度の量の画像では高速化に貢献しづらいのではないか。~~
+nvJPEGはTesla用ライブラリなので画面表示について考慮するのはほぼ無意味
 
 ## フローチャート
 
@@ -61,7 +62,7 @@ flowchart TD
 ### WICでの画像の展開
 
 WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。<br/>
-WICはMPOに非対応なのでCreateDecoderFromFileNameできない。自前で解体してやる必要がある…
+WICはMPOに非対応まｍｐで、自前で解析してJpegにしてからDecoderに渡す必要がある。そのためのライブラリを用意した。
 
 ```mermaid
 graph TD
@@ -93,8 +94,9 @@ graph TD
   IDXGIFactory-->EnumWarpAdapter["cuD3DGetDeviceをチェックしながら<br/>EnumWarpAdapter"]-->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
   IDXGIAdapter-->ID3D11Device
   
-  IDXGIFactory-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]-->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
+  IDXGIAdapter-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]-->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
   
+  RegisterClass["RegisterClassした<br/>WNDCLASS"]-->CreateWindow
   imageSize[/"WICで取得した画像のサイズ<br/>(UINT,UINT)"/]-->calcImageSize["処理後の画像サイズを計算"]
   calcImageSize-->CreateWindow[["CreateWindow"]]-->HWND[/"ウィンドウ<br/>(HWND)"/]
   calcImageSize & HWND-->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]-->IDXGISwapChain
