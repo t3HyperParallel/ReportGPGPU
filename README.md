@@ -110,6 +110,26 @@ graph TD
   cuGraphicsD3D11RegisterResource & buffers-->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
 ```
 
+### CUDA Driver APIでのptxの実行方法
+
+cuModuleLoadExはJITに関する設定を付与できる<br/>
+cuLaunchKernelExは矩形情報を構造体で受け取るので同じ設定を使い回す際に有利
+
+```mermaid
+flowchart TD
+  ptx[/"ptxファイル"/]-->cuModuleLoad[["ファイル名を指定して<br/>cuModuleLoad"]]
+  cuModuleLoad-->CUmodule[/"CUmodule"/]
+  ptx-."あるいは".->getBinaryImage[["ファイルをメモリに展開"]]
+  getBinaryImage-.->cuModuleLoadData[["cuModuleLoadDataもしくは<br/>cuModuleLoadDataEx"]]
+  cuModuleLoadData-.->CUmodule
+
+  CUmodule-->cuModuleGetFunction[["関数名を指定して<br/>cuModuleGetFunction"]]
+  cuModuleGetFunction-->CUfunction[/"CUfunction"/]
+  args[/"カーネルの引数とする<br/>デバイスポインタの配列"/]
+  g_tb[/"gridとthread blockのサイズ"/]
+  CUfunction & args & g_tb-->cuLaunchKernel[["cuLaunchKernelもしくは<br/>cuLaunchKernelEx"]]
+```
+
 ### リソースのCUDAでの使用方法
 
 ```mermaid
