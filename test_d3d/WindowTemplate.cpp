@@ -4,7 +4,7 @@
 #define UNICODE
 #endif
 
-# pragma once
+#pragma once
 
 #include <Windows.h>
 #include <winerror.h>
@@ -23,29 +23,29 @@
 
 #include <process.h>
 
-__forceinline void MesExit(LPCWSTR message,int exitCode)
+__forceinline void MesExit(LPCWSTR message, int exitCode)
 {
     MessageBoxW(NULL, message, L"WindowTemplate", MB_OK);
     exit(exitCode);
 }
 
-__inline void HRESULT_exit(HRESULT hr,LPCWSTR errorAt)
+__inline void HRESULT_exit(HRESULT hr, LPCWSTR errorAt)
 {
-    if(FAILED(hr))
+    if (FAILED(hr))
     {
         WCHAR mes[128];
-        wsprintf(mes,L"HRESULT %x at %s",hr,errorAt);
-        MesExit(mes,hr);
+        wsprintf(mes, L"HRESULT %x at %s", hr, errorAt);
+        MesExit(mes, hr);
     }
 }
 
-__inline void CUresult_exit(CUresult cr,LPCWSTR errorAt)
+__inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
 {
-    if(cr!=CUDA_SUCCESS)
+    if (cr != CUDA_SUCCESS)
     {
         WCHAR mes[128];
-        wsprintf(mes,L"CUresult %i at %s",cr,errorAt);
-        MesExit(mes,cr);
+        wsprintf(mes, L"CUresult %i at %s", cr, errorAt);
+        MesExit(mes, cr);
     }
 }
 
@@ -73,7 +73,6 @@ __inline void CUresult_exit(CUresult cr,LPCWSTR errorAt)
         }                                                          \
     }
 
-
 // 本来ならcuGetErrorNameとcuGetErrorStringを使用すべきだが
 // mbsへの変換が面倒なので割愛
 #define CHECK_CUresult(expr, errorAt)                                   \
@@ -98,10 +97,11 @@ LRESULT CALLBACK WindowProcW(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         return 0;
     case WM_PAINT:
-        return 0;
+        break;
     default:
-        return DefWindowProcW(hwnd, uMsg, wParam, lParam);
+        break;
     }
+    return DefWindowProcW(hwnd, uMsg, wParam, lParam);
 }
 
 const wchar_t CLASS_NAME[] = L"CLASS_RND_36589";
@@ -109,7 +109,7 @@ const wchar_t CLASS_NAME[] = L"CLASS_RND_36589";
 // signedかunsignedか不明なことがあるためマクロで用意
 #define SAMPLE_X 640
 #define SAMPLE_Y 480
-#define SAMPLE_X_Y SAMPLE_X,SAMPLE_Y
+#define SAMPLE_X_Y SAMPLE_X, SAMPLE_Y
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
@@ -131,7 +131,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     ShowWindow(hwnd, nCmdShow);
 
     // cuInit
-    CHECK_CUresult(cuInit(0),L"cuInit");
+    CHECK_CUresult(cuInit(0), L"cuInit");
 
     // ここからDXGI周り
     // CComPtrの使用にはatlsd.libを足すこと
@@ -140,9 +140,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     CHECK_HRESULT(CreateDXGIFactory(IID_PPV_ARGS(&m_DXGIFactory)), L"CreateDXGIFactory");
 
     // ここまでCOM周り
-    Templated_Init(hwnd,m_DXGIFactory);
+    Templated_Init(hwnd, m_DXGIFactory);
 
-    SetWindowTextW(hwnd,L"Template Window Class");
+    SetWindowTextW(hwnd, L"Template Window Class");
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0) > 0)
