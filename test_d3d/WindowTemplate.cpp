@@ -29,6 +29,18 @@ __forceinline void MesExit(LPCWSTR message, int exitCode)
     exit(exitCode);
 }
 
+__inline void GetLastError_exit(LPCWSTR errorAt)
+{
+    DWORD w32r = GetLastError();
+    if (w32r != ERROR_SUCCESS)
+    {
+        HRESULT hr = HRESULT_FROM_WIN32(w32r);
+        WCHAR mes[128];
+        wsprintf(mes, L"Win32 System Error %x\nas HRESULT %x at %s", w32r, hr, errorAt);
+        MesExit(mes, hr);
+    }
+}
+
 __inline void HRESULT_exit(HRESULT hr, LPCWSTR errorAt)
 {
     if (FAILED(hr))
@@ -39,6 +51,8 @@ __inline void HRESULT_exit(HRESULT hr, LPCWSTR errorAt)
     }
 }
 
+// 本来ならcuGetErrorNameとcuGetErrorStringを使用すべきだが
+// mbsへの変換が面倒なので割愛
 __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
 {
     if (cr != CUDA_SUCCESS)
@@ -49,43 +63,6 @@ __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
     }
 }
 
-#define CHECK_ZERO_GetLastError(expr, errorAt)                         \
-    {                                                                  \
-        if ((expr) == 0)                                               \
-        {                                                              \
-            DWORD hr = HRESULT_FROM_WIN32(GetLastError());             \
-            WCHAR mes[128];                                            \
-            wsprintfW(mes, L"HRESULT %x at %s", hr, errorAt);          \
-            MessageBoxW(NULL, mes, L"CHECK_ZERO_GetLastError", MB_OK); \
-            exit(hr);                                                  \
-        }                                                              \
-    }
-
-#define CHECK_HRESULT(expr, errorAt)                               \
-    {                                                              \
-        HRESULT hr = (expr);                                       \
-        if (FAILED(hr))                                            \
-        {                                                          \
-            WCHAR mes[128];                                        \
-            wsprintfW(mes, L"HRESULT %x(hex) at %s", hr, errorAt); \
-            MessageBoxW(NULL, mes, L"CHECK_HRESULT", MB_OK);       \
-            exit(hr);                                              \
-        }                                                          \
-    }
-
-// 本来ならcuGetErrorNameとcuGetErrorStringを使用すべきだが
-// mbsへの変換が面倒なので割愛
-#define CHECK_CUresult(expr, errorAt)                                   \
-    {                                                                   \
-        CUresult cr = (expr);                                           \
-        if (cr != 0)                                                    \
-        {                                                               \
-            WCHAR mes[128];                                             \
-            wsprintfW(mes, L"CUResult %i(decimal) at %s", cr, errorAt); \
-            MessageBoxW(NULL, mes, L"CHECK_CUresult", MB_OK);           \
-            exit(cr);                                                   \
-        }                                                               \
-    }
 
 __forceinline void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory);
 
@@ -117,7 +94,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     wc.lpfnWndProc = WindowProcW;
     wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
-    CHECK_ZERO_GetLastError(RegisterClassW(&wc), L"RegisterClass");
+    if (RegisterClassW(&wc))
+        GetLastError_exit(L"RegisterClass");
     HWND hwnd = CreateWindowExW(
         0,
         CLASS_NAME,
@@ -131,13 +109,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     ShowWindow(hwnd, nCmdShow);
 
     // cuInit
-    CHECK_CUresult(cuInit(0), L"cuInit");
+    CUresult_exit(cuInit(0), L"cuInit");
 
     // ここからDXGI周り
     // CComPtrの使用にはatlsd.libを足すこと
-    CHECK_HRESULT(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED), L"CoInitialize");
+    HRESULT_exit(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED), L"CoInitialize");
     CComPtr<IDXGIFactory> m_DXGIFactory;
-    CHECK_HRESULT(CreateDXGIFactory(IID_PPV_ARGS(&m_DXGIFactory)), L"CreateDXGIFactory");
+    HRESULT_exit(CreateDXGIFactory(IID_PPV_ARGS(&m_DXGIFactory)), L"CreateDXGIFactory");
 
     // ここまでCOM周り
     Templated_Init(hwnd, m_DXGIFactory);
