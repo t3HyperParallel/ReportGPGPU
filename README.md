@@ -89,25 +89,50 @@ graph TD
 
 ```mermaid
 graph TD
-  CreateDXGIFactory[[CreateDXGIFactory]]-->IDXGIFactory[/"IDXGIFactory"/]
-  
-  IDXGIFactory-->EnumWarpAdapter["cuD3DGetDeviceをチェックしながら<br/>EnumWarpAdapter"]-->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
-  IDXGIAdapter-->ID3D11Device
-  
-  IDXGIAdapter-->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]-->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
-  
-  RegisterClass["RegisterClassした<br/>WNDCLASS"]-->CreateWindow
-  imageSize[/"WICで取得した画像のサイズ<br/>(UINT,UINT)"/]-->calcImageSize["処理後の画像サイズを計算"]
-  calcImageSize-->CreateWindow[["CreateWindow"]]-->HWND[/"ウィンドウ<br/>(HWND)"/]
-  calcImageSize & HWND-->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]-->IDXGISwapChain
-  
-  ID3D11Device[/"ID3D11Device"/]-->ID3D11Device.CreateTexture2D[["CreateTexture2D"]]
-  rawImage[/"WICで取得した画像データとサイズ<br/>(BYTE[],UINT,UINT)"/]
-  rawImage & ID3D11Device.CreateTexture2D-->ID3D11Texture2D[/"VRAM上の画像<br/>(ID3D11Texture2D)"/]
-  ID3D11Texture2D & cuGraphicsD3D11RegisterResource[["cuGraphicsD3D11RegisterResource"]]-->sourceCUgraphicsResource[/"VRAM上の画像<br/>(CUgraphicsResource)"/]
-  
-  IDXGISwapChain-->IDXGISwapChain.GetBuffer[["GetBufferで全てのバッファの参照を取得"]]-->buffers[/"バッファ<br/>(ID3D11Texture2D)"/]
-  cuGraphicsD3D11RegisterResource & buffers-->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
+  CreateDXGIFactory[[CreateDXGIFactory]]
+  -->IDXGIFactory[/"IDXGIFactory"/]
+  -->EnumWarpAdapter["cuD3DGetDeviceをチェックしながら<br/>EnumWarpAdapter"]
+  -->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
+
+  CUdevice
+  --->cuCtxCreate[["cuCtxCreate"]]
+    -->CUcontext[/"CUcontext"/]
+  subgraph create_ctx
+    cuCtxCreate
+  end
+
+  RegisterClass["RegisterClassした<br/>WNDCLASS"]
+  -->CreateWindow
+  imageSize[/"WICで取得した画像のサイズ<br/>(UINT,UINT)"/]
+  -->calcImageSize["処理後の画像サイズを計算"]
+  -->CreateWindow[["CreateWindow"]]
+  -->HWND[/"ウィンドウ<br/>(HWND)"/]
+  calcImageSize & HWND
+  -->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]
+
+  IDXGIAdapter & DXGI_SWAP_CHAIN_DESC
+  --->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]
+  --->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
+
+  ID3D11Device[/"ID3D11Device"/]
+  -->ID3D11Device.CreateTexture2D[["CreateTexture2D"]]
+  rawImage[/"WICで取得した画像データとサイズ<br/>(BYTE[],UINT,UINT)"/] & ID3D11Device.CreateTexture2D
+  -->ID3D11Texture2D[/"VRAM上の画像<br/>(ID3D11Texture2D)"/]
+  -->cuGraphicsD3D11RegisterResource_image[["cuGraphicsD3D11RegisterResource"]]
+  -->sourceCUgraphicsResource[/"VRAM上の画像<br/>(CUgraphicsResource)"/]
+
+  IDXGISwapChain
+  -->IDXGISwapChain.GetBuffer[["GetBufferで全てのバッファの参照を取得"]]
+  -->buffers[/"バッファ<br/>(ID3D11Texture2D)"/]
+  -->cuGraphicsD3D11RegisterResource_target[["cuGraphicsD3D11RegisterResource"]]
+  -->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
+
+  subgraph wait_ctx
+    cuGraphicsD3D11RegisterResource_image
+    cuGraphicsD3D11RegisterResource_target
+  end
+  create_ctx---wait_ctx
+  cuCtxCreate-."先にコンテキストを作成する必要がある".->cuGraphicsD3D11RegisterResource_image & cuGraphicsD3D11RegisterResource_target
 ```
 
 ### CUDA Driver APIでのptxの実行方法
@@ -161,4 +186,3 @@ flowchart TD
 ### メインメモリへのデータの返却、WICでのエンコード
 
 WICは解像度情報も扱える
-
