@@ -51,8 +51,6 @@ __inline void HRESULT_exit(HRESULT hr, LPCWSTR errorAt)
     }
 }
 
-// 本来ならcuGetErrorNameとcuGetErrorStringを使用すべきだが
-// mbsへの変換が面倒なので割愛
 __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
 {
     if (cr != CUDA_SUCCESS)
