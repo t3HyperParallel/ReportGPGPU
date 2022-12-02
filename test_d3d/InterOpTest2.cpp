@@ -50,6 +50,7 @@ inline void GetFirstCuDevice(IDXGIFactory *pFactory, IDXGIAdapter **ppAdapter, C
             {
             case CUDA_SUCCESS:
                 *ppAdapter = m_tmpAdapter.Detach();
+                return; // ここ忘れてた
             case CUDA_ERROR_NO_DEVICE:
                 break;
             default:
@@ -60,7 +61,8 @@ inline void GetFirstCuDevice(IDXGIFactory *pFactory, IDXGIAdapter **ppAdapter, C
         case DXGI_ERROR_INVALID_CALL:
             break;
         default:
-            HRESULT_exit(hr, L"GetFirstCuDevice");
+            // DXGI_ERROR_NOT_FOUND(0x887A0002)が出力された場合、idxが範囲外
+            HRESULT_exit(hr, L"EnumAdapters in GetFirstCuDevice");
         }
     }
     MesExit(L"compatible device is not found", -1);
@@ -81,13 +83,13 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
             m_frame->GetSize(&siWidth, &siHeight),
             L"GetSize");
     }
-    std::unique_ptr<BYTE[]> m_buffer = std::make_unique<BYTE[]>(siWidth * siHeight*4);
+    std::unique_ptr<BYTE[]> m_buffer = std::make_unique<BYTE[]>(siWidth * siHeight * 4);
     {
         HRESULT_exit(
             m_frame->CopyPixels(
                 NULL,
                 siWidth * 4, // ストライド：1行あたりのデータ量(byte)
-                siWidth * siHeight *4,
+                siWidth * siHeight * 4,
                 m_buffer.get()),
             L"CopyPixels");
     }
@@ -121,8 +123,9 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
         HRESULT_exit(
             D3D11CreateDeviceAndSwapChain(
-                m_adapter,
-                D3D_DRIVER_TYPE_HARDWARE, NULL,
+                m_adapter,D3D_DRIVER_TYPE_UNKNOWN, NULL,
+                // pAdapterがnonnullのときはDriverTypeにHARDWAREを指定してはいけないらしい
+                // どうやらpAdapter=NULLで適当に指定してくれるらしく、その補助に使うのだろうか
                 D3D11_CREATE_DEVICE_DEBUG,
                 NULL, 0,
                 D3D11_SDK_VERSION,
@@ -140,7 +143,8 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         D3D11_TEXTURE2D_DESC texDesc = {0};
         texDesc.Width = SAMPLE_X;
         texDesc.Height = SAMPLE_Y;
-        texDesc.MipLevels = texDesc.ArraySize = 0;
+        texDesc.MipLevels = 1; // ミップマップをしないならレベルは1つ
+        texDesc.ArraySize = 1; // よくわからないが最低は1らしい、名前的にそう
         texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 変わるかも
         texDesc.SampleDesc.Count = 1;
         texDesc.SampleDesc.Quality = 0;
@@ -169,5 +173,5 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
             L"cuGraphicsD3D11RegisterResource for source");
     }
 
-    // 
+    //
 }
