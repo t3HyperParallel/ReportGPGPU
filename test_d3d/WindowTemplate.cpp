@@ -57,12 +57,23 @@ __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
 {
     if (cr != CUDA_SUCCESS)
     {
-        WCHAR mes[128];
-        wsprintf(mes, L"CUresult %i at %s", cr, errorAt);
+        WCHAR errWStr[128];
+        {
+            const char *errStr;
+            cuGetErrorString(cr, &errStr);
+            MultiByteToWideChar(CP_ACP, 0, errStr, -1, errWStr, 128);
+        }
+        WCHAR errWName[128];
+        {
+            const char *errName;
+            cuGetErrorName(cr, &errName);
+            MultiByteToWideChar(CP_ACP, 0, errName, -1, errWName, 128);
+        }
+        WCHAR mes[512];
+        wsprintf(mes, L"CUresult %i=%s\nat %s\n\n%s", cr,errWName, errorAt, errWStr);
         MesExit(mes, cr);
     }
 }
-
 
 __forceinline void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory);
 
