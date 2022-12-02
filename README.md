@@ -88,7 +88,7 @@ graph TD
 > Do not mix the use of DXGI 1.0 (IDXGIFactory) and DXGI 1.1 (IDXGIFactory1) in an application.
 
 ```mermaid
-graph TD
+flowchart TD
   CreateDXGIFactory[[CreateDXGIFactory]]
   -->IDXGIFactory[/"IDXGIFactory"/]
   -->EnumWarpAdapter["cuD3DGetDeviceをチェックしながら<br/>EnumWarpAdapter"]
@@ -97,9 +97,6 @@ graph TD
   CUdevice
   --->cuCtxCreate[["cuCtxCreate"]]
     -->CUcontext[/"CUcontext"/]
-  subgraph create_ctx
-    cuCtxCreate
-  end
 
   RegisterClass["RegisterClassした<br/>WNDCLASS"]
   -->CreateWindow
@@ -127,12 +124,11 @@ graph TD
   -->cuGraphicsD3D11RegisterResource_target[["cuGraphicsD3D11RegisterResource"]]
   -->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
 
-  subgraph wait_ctx
+  subgraph device 
     cuGraphicsD3D11RegisterResource_image
     cuGraphicsD3D11RegisterResource_target
   end
-  create_ctx---wait_ctx
-  cuCtxCreate-."先にコンテキストを作成する必要がある".->cuGraphicsD3D11RegisterResource_image & cuGraphicsD3D11RegisterResource_target
+  cuCtxCreate-->device
 ```
 
 ### CUDA Driver APIでのptxの実行方法
