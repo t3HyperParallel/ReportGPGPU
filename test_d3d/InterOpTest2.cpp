@@ -3,7 +3,7 @@
 #include <wincodec.h>
 #include <memory>
 
-LPCWSTR SAMPLE_FILENAME = L"sample.MPO";
+LPCWSTR SAMPLE_FILENAME = L"sample1.MPO";
 
 inline void LoadSampleImage(IWICBitmapFrameDecode **ppFrame)
 {
@@ -81,13 +81,13 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
             m_frame->GetSize(&siWidth, &siHeight),
             L"GetSize");
     }
-    std::unique_ptr<BYTE[]> m_buffer = std::make_unique<BYTE[]>(siWidth * siHeight);
+    std::unique_ptr<BYTE[]> m_buffer = std::make_unique<BYTE[]>(siWidth * siHeight*4);
     {
         HRESULT_exit(
             m_frame->CopyPixels(
                 NULL,
                 siWidth * 4, // ストライド：1行あたりのデータ量(byte)
-                siWidth * siHeight,
+                siWidth * siHeight *4,
                 m_buffer.get()),
             L"CopyPixels");
     }
@@ -168,4 +168,6 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
                 &cudaSampleImage, m_devMem, CU_GRAPHICS_REGISTER_FLAGS_NONE),
             L"cuGraphicsD3D11RegisterResource for source");
     }
+
+    // 
 }
