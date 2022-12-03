@@ -124,11 +124,14 @@ flowchart TD
   -->cuGraphicsD3D11RegisterResource_target[["cuGraphicsD3D11RegisterResource"]]
   -->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
 
-  subgraph device 
+  subgraph "コンテキストの処理"
+    cuCtxCreate
+  end
+
+  subgraph "デバイス下の処理なのでコンテキストの処理を先にやってから" 
     cuGraphicsD3D11RegisterResource_image
     cuGraphicsD3D11RegisterResource_target
   end
-  cuCtxCreate-->device
 ```
 
 ### CUDA Driver APIでのptxの実行方法
