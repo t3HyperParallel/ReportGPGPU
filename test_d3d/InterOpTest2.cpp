@@ -98,6 +98,13 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
     CUdevice cudaDevice;
     GetFirstCuDevice(pDXGIFactory, &m_adapter, &cudaDevice);
 
+    // よくわからない
+    CUcontext cudaContext;
+    CUresult_exit(
+        cuCtxCreate(&cudaContext, CU_CTX_SCHED_AUTO, cudaDevice),
+        L"cuCtxCreate");
+    // コンテキストのプッシュというのが必要？
+
     // D3D11CreateDeviceAndSwapChainする
     CComPtr<IDXGISwapChain> m_swapChain;
     CComPtr<ID3D11Device> m_D3DDevice;
@@ -123,7 +130,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
         HRESULT_exit(
             D3D11CreateDeviceAndSwapChain(
-                m_adapter,D3D_DRIVER_TYPE_UNKNOWN, NULL,
+                m_adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL,
                 // pAdapterがnonnullのときはDriverTypeにHARDWAREを指定してはいけないらしい
                 // どうやらpAdapter=NULLで適当に指定してくれるらしく、その補助に使うのだろうか
                 D3D11_CREATE_DEVICE_DEBUG,
@@ -138,13 +145,13 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
     }
 
     // CreateTexture2Dする
-    CComPtr<ID3D11Texture2D> m_devMem;
+    CComPtr<ID3D11Texture2D> m_sample;
     {
         D3D11_TEXTURE2D_DESC texDesc = {0};
         texDesc.Width = SAMPLE_X;
         texDesc.Height = SAMPLE_Y;
-        texDesc.MipLevels = 1; // ミップマップをしないならレベルは1つ
-        texDesc.ArraySize = 1; // よくわからないが最低は1らしい、名前的にそう
+        texDesc.MipLevels = 1;                       // ミップマップをしないならレベルは1つ
+        texDesc.ArraySize = 1;                       // よくわからないが最低は1らしい、名前的にそう
         texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 変わるかも
         texDesc.SampleDesc.Count = 1;
         texDesc.SampleDesc.Quality = 0;
@@ -160,18 +167,56 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
         HRESULT_exit(
             m_D3DDevice->CreateTexture2D(
-                &texDesc, &subresource, &m_devMem),
+                &texDesc, &subresource, &m_sample),
             L"CreateTexture2D");
     }
 
-    // スワップチェーンのバッファを取得
-    CUgraphicsResource cudaSampleImage;
+    CComPtr<ID3D11Texture2D> m_target;
+    HRESULT_exit(
+        m_swapChain->GetBuffer(0, IID_PPV_ARGS(&m_target)),
+        L"IDXGISwapChain::GetBuffer");
+
+    // リソースの登録
+    CUgraphicsResource cudaSample, cudaTarget;
+    CUresult_exit(
+        cuGraphicsD3D11RegisterResource(
+            &cudaSample, m_sample,
+            CU_GRAPHICS_REGISTER_FLAGS_NONE),
+        L"cuGraphicsD3D11RegisterResource for sample image");
+    CUresult_exit(
+        cuGraphicsD3D11RegisterResource(
+            &cudaTarget, m_target,
+            CU_GRAPHICS_REGISTER_FLAGS_NONE),
+        L"cuGraphicsD3D11RegisterResource for swap chain buffer");
+
+    // リソースをデバイスにmap
+    CUresult_exit(
+        cuGraphicsMapResources(1, &cudaSample, NULL),
+        L"cuGraphicsMapResources for sample image");
+    CUresult_exit(
+        cuGraphicsMapResources(1, &cudaTarget, NULL),
+        L"cuGraphicsMapResources for target");
+
+    // コピーしてみる
     {
+        CUdeviceptr dpSample, dpTarget;
+        size_t size_sample, size_target;
         CUresult_exit(
-            cuGraphicsD3D11RegisterResource(
-                &cudaSampleImage, m_devMem, CU_GRAPHICS_REGISTER_FLAGS_NONE),
-            L"cuGraphicsD3D11RegisterResource for source");
+            cuGraphicsResourceGetMappedPointer(&dpSample, &size_sample, cudaSample),
+            L"cuGraphicsResourceGetMappedPointer for sample image");
+        CUresult_exit(
+            cuGraphicsResourceGetMappedPointer(&dpTarget, &size_target, cudaTarget),
+            L"cuGraphicsResourceGetMappedPointer for target");
+        CUresult_exit(
+            cuMemcpy(dpTarget, dpSample, min(size_sample, size_target)),
+            L"cuMemCpy");
     }
 
-    //
+    // unmap
+    CUresult_exit(
+        cuGraphicsUnmapResources(1, &cudaSample, NULL),
+        L"cuGraphicsUnmapResources for sample image");
+    CUresult_exit(
+        cuGraphicsUnmapResources(1, &cudaTarget, NULL),
+        L"cuGraphicsUnmapResources for target");
 }
