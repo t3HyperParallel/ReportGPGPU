@@ -132,10 +132,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     SetWindowTextW(hwnd, L"Template Window Class");
 
     MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0) > 0)
+    while (GetMessageW(&msg, NULL, 0, 0) > 0)
     {
         TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        DispatchMessageW(&msg);
     }
     return 0;
 }
