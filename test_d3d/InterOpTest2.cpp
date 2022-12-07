@@ -95,13 +95,13 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
     }
 
     CComPtr<IDXGIAdapter> m_adapter;
-    CUdevice cudaDevice;
-    GetFirstCuDevice(pDXGIFactory, &m_adapter, &cudaDevice);
+    CUdevice cu_device;
+    GetFirstCuDevice(pDXGIFactory, &m_adapter, &cu_device);
 
     // よくわからない
-    CUcontext cudaContext;
+    CUcontext cu_context;
     CUresult_exit(
-        cuCtxCreate(&cudaContext, CU_CTX_SCHED_AUTO, cudaDevice),
+        cuCtxCreate(&cu_context, CU_CTX_SCHED_AUTO, cu_device),
         L"cuCtxCreate");
     // コンテキストのプッシュというのが必要？
 
@@ -145,7 +145,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
     }
 
     // CreateTexture2Dする
-    CComPtr<ID3D11Texture2D> m_sample;
+    CComPtr<ID3D11Texture2D> m_d_sampleImage;
     {
         D3D11_TEXTURE2D_DESC texDesc = {0};
         texDesc.Width = SAMPLE_X;
@@ -167,56 +167,63 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
         HRESULT_exit(
             m_D3DDevice->CreateTexture2D(
-                &texDesc, &subresource, &m_sample),
+                &texDesc, &subresource, &m_d_sampleImage),
             L"CreateTexture2D");
     }
 
-    CComPtr<ID3D11Texture2D> m_target;
+    CComPtr<ID3D11Texture2D> m_d_target;
     HRESULT_exit(
-        m_swapChain->GetBuffer(0, IID_PPV_ARGS(&m_target)),
+        m_swapChain->GetBuffer(0, IID_PPV_ARGS(&m_d_target)),
         L"IDXGISwapChain::GetBuffer");
 
     // リソースの登録
-    CUgraphicsResource cudaSample, cudaTarget;
+    CUgraphicsResource cu_d_sampleImage, cu_d_target;
     CUresult_exit(
         cuGraphicsD3D11RegisterResource(
-            &cudaSample, m_sample,
+            &cu_d_sampleImage, m_d_sampleImage,
             CU_GRAPHICS_REGISTER_FLAGS_NONE),
         L"cuGraphicsD3D11RegisterResource for sample image");
     CUresult_exit(
         cuGraphicsD3D11RegisterResource(
-            &cudaTarget, m_target,
+            &cu_d_target, m_d_target,
             CU_GRAPHICS_REGISTER_FLAGS_NONE),
         L"cuGraphicsD3D11RegisterResource for swap chain buffer");
 
     // リソースをデバイスにmap
     CUresult_exit(
-        cuGraphicsMapResources(1, &cudaSample, NULL),
+        cuGraphicsMapResources(1, &cu_d_sampleImage, NULL),
         L"cuGraphicsMapResources for sample image");
     CUresult_exit(
-        cuGraphicsMapResources(1, &cudaTarget, NULL),
+        cuGraphicsMapResources(1, &cu_d_target, NULL),
         L"cuGraphicsMapResources for target");
 
     // コピーしてみる
     {
-        CUdeviceptr dpSample, dpTarget;
+        CUdeviceptr cu_dpSampleImage, cu_dpTarget;
         size_t size_sample, size_target;
+        // ここで止まる、targetもダメ、リソースの作成レベルで問題？
         CUresult_exit(
-            cuGraphicsResourceGetMappedPointer(&dpSample, &size_sample, cudaSample),
+            cuGraphicsResourceGetMappedPointer(&cu_dpSampleImage, &size_sample, cu_d_sampleImage),
             L"cuGraphicsResourceGetMappedPointer for sample image");
         CUresult_exit(
-            cuGraphicsResourceGetMappedPointer(&dpTarget, &size_target, cudaTarget),
+            cuGraphicsResourceSetMapFlags(cu_d_sampleImage, CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY),
+            L"cuGraphicsResourceSetMapFlags for sample image");
+        CUresult_exit(
+            cuGraphicsResourceGetMappedPointer(&cu_dpTarget, &size_target, cu_d_target),
             L"cuGraphicsResourceGetMappedPointer for target");
         CUresult_exit(
-            cuMemcpy(dpTarget, dpSample, min(size_sample, size_target)),
+            cuGraphicsResourceSetMapFlags(cu_d_target, CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD),
+            L"cuGraphicsResourceSetMapFlags for target");
+        CUresult_exit(
+            cuMemcpy(cu_dpTarget, cu_dpSampleImage, min(size_sample, size_target)),
             L"cuMemCpy");
     }
 
     // unmap
     CUresult_exit(
-        cuGraphicsUnmapResources(1, &cudaSample, NULL),
+        cuGraphicsUnmapResources(1, &cu_d_sampleImage, NULL),
         L"cuGraphicsUnmapResources for sample image");
     CUresult_exit(
-        cuGraphicsUnmapResources(1, &cudaTarget, NULL),
+        cuGraphicsUnmapResources(1, &cu_d_target, NULL),
         L"cuGraphicsUnmapResources for target");
 }
