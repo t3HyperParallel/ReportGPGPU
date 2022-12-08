@@ -104,6 +104,9 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         cuCtxCreate(&cu_context, CU_CTX_SCHED_AUTO, cu_device),
         L"cuCtxCreate");
     // コンテキストのプッシュというのが必要？
+    CUresult_exit(
+        cuCtxPushCurrent(cu_context),
+        L"cuCtxPushCurrent");
 
     // D3D11CreateDeviceAndSwapChainする
     CComPtr<IDXGISwapChain> m_swapChain;
@@ -156,9 +159,9 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         texDesc.SampleDesc.Count = 1;
         texDesc.SampleDesc.Quality = 0;
         texDesc.Usage = D3D11_USAGE_IMMUTABLE;          // 変わるかも
-        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // わからん
-        texDesc.CPUAccessFlags = 0;
-        texDesc.MiscFlags = 0;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // 何かは設定しないといけないらしい
+        texDesc.CPUAccessFlags = 0;                     // 変えると動かない
+        texDesc.MiscFlags = 0;                          // 変えると動かない
 
         D3D11_SUBRESOURCE_DATA subresource = {0};
         subresource.pSysMem = m_buffer.get();
@@ -177,6 +180,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         L"IDXGISwapChain::GetBuffer");
 
     // リソースの登録
+    // SetMapFlagsはMapする前にやる必要がある
     CUgraphicsResource cu_d_sampleImage, cu_d_target;
     CUresult_exit(
         cuGraphicsD3D11RegisterResource(
@@ -184,10 +188,16 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
             CU_GRAPHICS_REGISTER_FLAGS_NONE),
         L"cuGraphicsD3D11RegisterResource for sample image");
     CUresult_exit(
+        cuGraphicsResourceSetMapFlags(cu_d_sampleImage, CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY),
+        L"cuGraphicsResourceSetMapFlags for sample image");
+    CUresult_exit(
         cuGraphicsD3D11RegisterResource(
             &cu_d_target, m_d_target,
             CU_GRAPHICS_REGISTER_FLAGS_NONE),
         L"cuGraphicsD3D11RegisterResource for swap chain buffer");
+    CUresult_exit(
+        cuGraphicsResourceSetMapFlags(cu_d_target, CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD),
+        L"cuGraphicsResourceSetMapFlags for target");
 
     // リソースをデバイスにmap
     CUresult_exit(
@@ -201,19 +211,13 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
     {
         CUdeviceptr cu_dpSampleImage, cu_dpTarget;
         size_t size_sample, size_target;
-        // ここで止まる、targetもダメ、リソースの作成レベルで問題？
+        // ! ここで止まる、siもtargetもダメ、リソースの作成レベルで問題？
         CUresult_exit(
             cuGraphicsResourceGetMappedPointer(&cu_dpSampleImage, &size_sample, cu_d_sampleImage),
             L"cuGraphicsResourceGetMappedPointer for sample image");
         CUresult_exit(
-            cuGraphicsResourceSetMapFlags(cu_d_sampleImage, CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY),
-            L"cuGraphicsResourceSetMapFlags for sample image");
-        CUresult_exit(
             cuGraphicsResourceGetMappedPointer(&cu_dpTarget, &size_target, cu_d_target),
             L"cuGraphicsResourceGetMappedPointer for target");
-        CUresult_exit(
-            cuGraphicsResourceSetMapFlags(cu_d_target, CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD),
-            L"cuGraphicsResourceSetMapFlags for target");
         CUresult_exit(
             cuMemcpy(cu_dpTarget, cu_dpSampleImage, min(size_sample, size_target)),
             L"cuMemCpy");
