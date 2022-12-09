@@ -158,19 +158,26 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  cu_registerResource["リソースを登録してCUgraphicsResourceを取得<br/>(cuGraphicsD3D11RegisterResourceなど)"]
-  subgraph kernel
-    kernelStart[/"処理開始"\]
-    cuGraphicsMapResources[["cuGraphicsMapResources"]]
-    cuGraphicsResourceGetMappedPointer[["cuGraphicsResourceGetMappedPointerでCUdeviceptrを取得"]]
-    doKernel["カーネル処理を実行"]
-    cuGraphicsUnmapResources[["cuGraphicsUnmapResources"]]
-    kernelEnd[\"処理終了"/]
+  CUgraphicsResource[/"CUgraphicsResource"/]
+  -->cuGraphicsMapResources[["cuGraphicsMapResources"]]
+  <-->cuGraphicsUnmapResources[[cuGraphicsUnmapResources]]
+
+  CUgraphicsResource
+  -."ID3D11Bufferにリンク".->
+    cuGraphicsResourceGetMappedPointer[[cuGraphicsGetMappedPointer]]
+  -->CUdeviceptr[/"CUdeviceptr"/]
+
+  CUgraphicsResource
+  -."ID3D11Texture1D/2D/3Dにリンク".->
+    cuGraphicsResourceGetMappedMipmappedArray[["cuGraphicsResourceGetMappedMipmappedArray"]]
+  -->CUmipmappedArray[/"CUmipmappedArray"/]
+
+  subgraph "マップ中、グラフィックスAPIはこの間リソースにアクセスできない"
+    cuGraphicsResourceGetMappedPointer
+    CUdeviceptr
+    cuGraphicsResourceGetMappedMipmappedArray
+    CUmipmappedArray
   end
-  cuGraphicsUnregisterResource[["cuGraphicsUnregisterResource"]]
-  
-  cu_registerResource-->kernel-->cuGraphicsUnregisterResource
-  kernelStart-->cuGraphicsMapResources-->cuGraphicsResourceGetMappedPointer-->doKernel-->cuGraphicsUnmapResources-->kernelEnd
 ```
 
 ### 表示処理
