@@ -68,6 +68,10 @@ inline void GetFirstCuDevice(IDXGIFactory *pFactory, IDXGIAdapter **ppAdapter, C
     MesExit(L"compatible device is not found", -1);
 }
 
+void EventHandler_WM_PAINT()
+{
+}
+
 // ほぼ参考資料通り
 // https://learn.microsoft.com/ja-jp/windows/win32/direct3d11/overviews-direct3d-11-resources-textures-how-to
 
@@ -181,53 +185,86 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
     // リソースの登録
     // SetMapFlagsはMapする前にやる必要がある
-    CUgraphicsResource cu_d_sampleImage, cu_d_target;
+    // gi:Graphic Interoperating
+    CUgraphicsResource cu_giResource_sampleImage, cu_giResource_target;
     CUresult_exit(
         cuGraphicsD3D11RegisterResource(
-            &cu_d_sampleImage, m_d_sampleImage,
+            &cu_giResource_sampleImage, m_d_sampleImage,
             CU_GRAPHICS_REGISTER_FLAGS_NONE),
         L"cuGraphicsD3D11RegisterResource for sample image");
     CUresult_exit(
-        cuGraphicsResourceSetMapFlags(cu_d_sampleImage, CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY),
+        cuGraphicsResourceSetMapFlags(cu_giResource_sampleImage, CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY),
         L"cuGraphicsResourceSetMapFlags for sample image");
     CUresult_exit(
         cuGraphicsD3D11RegisterResource(
-            &cu_d_target, m_d_target,
+            &cu_giResource_target, m_d_target,
             CU_GRAPHICS_REGISTER_FLAGS_NONE),
         L"cuGraphicsD3D11RegisterResource for swap chain buffer");
     CUresult_exit(
-        cuGraphicsResourceSetMapFlags(cu_d_target, CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD),
+        cuGraphicsResourceSetMapFlags(cu_giResource_target, CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD),
         L"cuGraphicsResourceSetMapFlags for target");
 
     // リソースをデバイスにmap
     CUresult_exit(
-        cuGraphicsMapResources(1, &cu_d_sampleImage, NULL),
+        cuGraphicsMapResources(1, &cu_giResource_sampleImage, NULL),
         L"cuGraphicsMapResources for sample image");
     CUresult_exit(
-        cuGraphicsMapResources(1, &cu_d_target, NULL),
+        cuGraphicsMapResources(1, &cu_giResource_target, NULL),
         L"cuGraphicsMapResources for target");
 
     // コピーしてみる
     {
-        CUdeviceptr cu_dpSampleImage, cu_dpTarget;
+        // 使うかもしれないので消さないでおく
+        // CUdeviceptr cu_dpSampleImage, cu_dpTarget;
+
+        CUarray cu_array_sampleImage, cu_array_target;
         size_t size_sample, size_target;
-        // ! ここで止まる、siもtargetもダメ、リソースの作成レベルで問題？
+        // ! cuGraphicsResourceGetMappedPointerで止まる、siもtargetもダメ、リソースの作成レベルで問題？
+        // ? cuGraphicsD3D11RegisterResourceについて読み直した
+        // ?  "ID3D11Texture2D: individual subresources of the texture may be accessed via arrays"
+        // ? つまり、デバイスポインタ経由では取得できないということ…？
+        // * CUmipmappedArrayの取得に成功、で、どうやってアクセスするんだ？
+        // * CUarrayを直接取得した方が便利そう
         CUresult_exit(
-            cuGraphicsResourceGetMappedPointer(&cu_dpSampleImage, &size_sample, cu_d_sampleImage),
-            L"cuGraphicsResourceGetMappedPointer for sample image");
+            cuGraphicsSubResourceGetMappedArray(
+                &cu_array_sampleImage, cu_giResource_sampleImage, 0, 0),
+            L"cuGraphicsResourceGetMipmappedArray for sample image");
         CUresult_exit(
-            cuGraphicsResourceGetMappedPointer(&cu_dpTarget, &size_target, cu_d_target),
-            L"cuGraphicsResourceGetMappedPointer for target");
-        CUresult_exit(
-            cuMemcpy(cu_dpTarget, cu_dpSampleImage, min(size_sample, size_target)),
-            L"cuMemCpy");
+            cuGraphicsSubResourceGetMappedArray(
+                &cu_array_target, cu_giResource_target, 0, 0),
+            L"cuGraphicsResourceGetMipmappedArray for target");
+        // ! cuMemCopyAtoAは1次元Array用
+        // * 2次元ArrayにはcuMemcpy2Dを使用
+        {
+            CUDA_MEMCPY2D cpyParams = {0};
+            cpyParams.dstXInBytes; // オフセット
+            cpyParams.dstY;        // オフセット
+            cpyParams.dstMemoryType = CU_MEMORYTYPE_ARRAY;
+            cpyParams.dstArray = cu_array_target;
+
+            cpyParams.srcXInBytes; // オフセット
+            cpyParams.srcY;        // オフセット
+            cpyParams.srcMemoryType = CU_MEMORYTYPE_ARRAY;
+            cpyParams.srcArray = cu_array_sampleImage;
+
+            cpyParams.Height = SAMPLE_Y;           // コピー長
+            cpyParams.WidthInBytes = SAMPLE_Y * 4; // コピー長
+
+            CUresult_exit(
+                cuMemcpy2D(&cpyParams),
+                L"cuMemcpy2D");
+        }
     }
 
     // unmap
     CUresult_exit(
-        cuGraphicsUnmapResources(1, &cu_d_sampleImage, NULL),
+        cuGraphicsUnmapResources(1, &cu_giResource_sampleImage, NULL),
         L"cuGraphicsUnmapResources for sample image");
     CUresult_exit(
-        cuGraphicsUnmapResources(1, &cu_d_target, NULL),
+        cuGraphicsUnmapResources(1, &cu_giResource_target, NULL),
         L"cuGraphicsUnmapResources for target");
+
+    HRESULT_exit(
+        m_swapChain->Present(0, 0),
+        L"Present");
 }
