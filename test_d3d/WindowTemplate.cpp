@@ -26,7 +26,7 @@
 __forceinline void MesExit(LPCWSTR message, int exitCode)
 {
     MessageBoxW(NULL, message, L"WindowTemplate", MB_OK);
-    exit(exitCode);
+    PostQuitMessage(exitCode);
 }
 
 __inline void GetLastError_exit(LPCWSTR errorAt)
@@ -75,6 +75,8 @@ __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
 
 __forceinline void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory);
 
+__forceinline void EventHandler_WM_PAINT();
+
 LRESULT CALLBACK WindowProcW(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
@@ -83,6 +85,7 @@ LRESULT CALLBACK WindowProcW(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         return 0;
     case WM_PAINT:
+        EventHandler_WM_PAINT();
         break;
     default:
         break;
