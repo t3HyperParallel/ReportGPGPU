@@ -64,3 +64,22 @@ cuD3D11GetDeviceはIDXGIAdapterに対応するDXGIアダプタがCUDAデバイ�
 
 Windows8以降では通常アダプタ0はMicrosoft Basic Render Driverであり、1以降にビデオカードが配置されている。
 したがって、Windows11でiGPUとGeForce GTX 1650 Tiが搭載されている筆者環境ではDXGIデバイスは3つ、CUDAデバイスは1つとなる。
+
+### InterOpTest2.cpp
+
+CUDA Direct3D11 Interoperabilityを使用するテスト
+
+CUDAの標準ライブラリにはGraphics Interoperabilityと称しグラフィクスAPIとの連携機能としてDirect3D9/10/11のTexture1D/2D/3DとBuffer、あるいはOpenGLのバッファへの参照をマップしCUDAカーネルで利用できる機能がある。
+
+（詳細な使用の流れはリポジトリのトップディレクトリにある README.md に記載したグラフを参照のこと）
+要点を挙げると、
+
++ CUDA APIで正常に扱えるテクスチャには制約がある。
++ グラフィクスAPIのリソースは事前にCUDA API側に登録することで参照を取得できる。
++ ID3D11Texture1D/2D/3DからはCUdevptrを取得できず、CUarrayとして参照を取得する。
+
+マップしたリソースはカーネルでの処理が終わる度（即ち毎フレーム）cuGraphicsUnmapResourcesをかける必要がある。
+しかし、リソースの登録自体は毎フレーム呼び出してはいけない。
+
+このコードではD3D11Texture2Dに対応するCUgraphicsResourceを取得、テクスチャに対応するCUarrayを取得、cuMemcpy2Dを使ってスワップチェーンのバッファに書き込みを行う。
+（取り込んだサンプル画像のフォーマットが間違っていることに起因する画像の乱れがあるが、CUDA APIからスワップチェーンのバッファに書き込みが行えることを十分示せているので放置してある。）
