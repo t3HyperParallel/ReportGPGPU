@@ -68,6 +68,17 @@ inline void GetFirstCuDevice(IDXGIFactory *pFactory, IDXGIAdapter **ppAdapter, C
     MesExit(L"compatible device is not found", -1);
 }
 
+// コンテキストを作成してPushする必要があるらしい
+inline void CreateCuContext(CUcontext *pCtx, CUdevice dev)
+{
+    CUresult_exit(
+        cuCtxCreate(pCtx, CU_CTX_SCHED_AUTO, dev),
+        L"cuCtxCreate");
+    CUresult_exit(
+        cuCtxPushCurrent(*pCtx),
+        L"cuPushCurrent");
+}
+
 void EventHandler_WM_PAINT()
 {
 }
@@ -104,13 +115,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
     // よくわからない
     CUcontext cu_context;
-    CUresult_exit(
-        cuCtxCreate(&cu_context, CU_CTX_SCHED_AUTO, cu_device),
-        L"cuCtxCreate");
-    // コンテキストのプッシュというのが必要？
-    CUresult_exit(
-        cuCtxPushCurrent(cu_context),
-        L"cuCtxPushCurrent");
+    CreateCuContext(&cu_context,cu_device);
 
     // D3D11CreateDeviceAndSwapChainする
     CComPtr<IDXGISwapChain> m_swapChain;
