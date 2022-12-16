@@ -64,25 +64,43 @@ flowchart TD
 ### WICでの画像の展開
 
 WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。<br/>
-WICはMPOに非対応まｍｐで、自前で解析してJpegにしてからDecoderに渡す必要がある。そのためのライブラリを用意した。
+WICはMPOに非対応である為、自前で解析してJpegにしてからDecoderに渡す必要がある。そのためのライブラリもこのプロジェクトに用意した。
+
+ピクセルフォーマットの変換はGPUで行った方が早い可能性あり。
+特に24bitカラーを32bitカラーに変換する場合、変換をGPUで行えば転送すべき画像データが3/4のサイズとなる。
 
 ```mermaid
 graph TD
-  IWICImagingFactory[/"IWICImagingFactory"/]---IWICImagingFactory.CreateDecoderFromFileName[["CreateDecodeFromFileName"]]
-  IWICImagingFactory.CreateDecoderFromFileName-->IWICBitmapDecoder[/"IWICBitmapDecoder"/]
-  IWICBitmapDecoder---IWICBitmapDecoder.GetFrame[["GetFrame"]]
-  IWICBitmapDecoder.GetFrame-->IWICBitmapFrameDecode[/"IWICBitmapFrameDecode"/]
-  IWICBitmapFrameDecode---IWICBitmapSource.GetSize[["GetSize"]]
-  IWICBitmapSource.GetSize--->size[/"画像のサイズ"/]
-  IWICBitmapFrameDecode---IWICBitmapSource.CopyPixels[["CopyPixels"]]
+  CoCreateInstance[["CoCreateInstance or<br/>CoCreateInstanceEx"]]
+  -->IWICImagingFactory[/"IWICImagingFactory"/]
+  ---IWICImagingFactory.CreateDecoderFromFileName[["CreateDecodeFromFileName"]]
+  -->IWICBitmapDecoder[/"IWICBitmapDecoder"/]
+  ---IWICBitmapDecoder.GetFrame[["GetFrame"]]
+  -->IWICBitmapFrameDecode[/"IWICBitmapFrameDecode"/]
+  --"暗黙キャスト"--->IWICBitmapSource[/"IWICBitmapSource"/]
+
+  IWICBitmapSource
+  ---IWICBitmapSource.GetSize[["GetSize"]]
+  -->size[/"画像のサイズ"/]
+  IWICBitmapSource
+  ---IWICBitmapSource.CopyPixels[["CopyPixels"]]
   size & IWICBitmapSource.CopyPixels-->raw[/"画像の生データ(BYTE[])"/]
-  
-  IWICImagingFactory-.-IWICImagingFactory.CreateFormatConverter[["CreateFormatConverter"]]
-  IWICImagingFactory.CreateFormatConverter-.->unusedIWICFormatConverter["IWICFormatConverter<br/>（起動前）"]
-  unusedIWICFormatConverter-.-IWICFormatConverter.Init[["Init"]]
-  IWICBitmapFrameDecode-.->|フォーマットの変換が<br/>必要な場合|convertedIWICFormatConverter
-  IWICFormatConverter.Init-.->convertedIWICFormatConverter["IWICFormatConverter<br/>（コンバート完了）"]
-  convertedIWICFormatConverter-.-IWICBitmapSource.GetSize & IWICBitmapSource.CopyPixels
+
+  IWICImagingFactory
+  ----IWICImagingFactory.CreateFormatConverter[["CreateFormatConverter"]]
+  -->unusedIWICFormatConverter["IWICFormatConverter<br/>（起動前）"]
+  ---IWICFormatConverter.Init[["Init"]]
+  -->convertedIWICFormatConverter["IWICFormatConverter<br/>（コンバート完了）"]
+  --"暗黙キャスト"-->IWICBitmapSource
+  IWICBitmapFrameDecode
+  -."ピクセルフォーマット<br/>変換する場合".->IWICFormatConverter.Init
+
+  subgraph WICを用いて<br/>フォーマット変換を行う
+    IWICImagingFactory.CreateFormatConverter
+    unusedIWICFormatConverter
+    IWICFormatConverter.Init
+    convertedIWICFormatConverter
+  end
 ```
 
 ### 初期化、VRAMへの画像のロード
@@ -93,35 +111,38 @@ graph TD
 flowchart TD
   CreateDXGIFactory[[CreateDXGIFactory]]
   -->IDXGIFactory[/"IDXGIFactory"/]
-  -->EnumWarpAdapter["cuD3DGetDeviceをチェックしながら<br/>EnumWarpAdapter"]
-  -->CUdevice[/"CUdevice"/] & IDXGIAdapter[/"IDXGIAdapter"/]
+  -->EnumWarpAdapter_cuD3D11GetDevice["cuD3D11GetDeviceをチェックしながら<br/>EnumWarpAdapter"]
+  -->IDXGIAdapter[/"IDXGIAdapter"/]
+  ---D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]
 
-  CUdevice
-  --->cuCtxCreate[["cuCtxCreate"]]
-    -->CUcontext[/"CUcontext"/]
+  EnumWarpAdapter_cuD3D11GetDevice
+  -->CUdevice[/"CUdevice"/]
+  -->cuCtxCreate[["cuCtxCreate"]]
+  -->CUcontext[/"CUcontext"/]
 
-  RegisterClass["RegisterClassした<br/>WNDCLASS"]
-  -->CreateWindow
-  imageSize[/"WICで取得した画像のサイズ<br/>(UINT,UINT)"/]
-  -->calcImageSize["処理後の画像サイズを計算"]
+  RegisterClass[/"RegisterClassした<br/>WNDCLASS"/]
   -->CreateWindow[["CreateWindow"]]
   -->HWND[/"ウィンドウ<br/>(HWND)"/]
-  calcImageSize & HWND
   -->DXGI_SWAP_CHAIN_DESC[/"DXGI_SWAP_CHAIN_DESC"/]
+  imageSize[/"画像のサイズ"/]
+  -->windowSize[/"ウィンドウサイズ"/]
+  -->rtSize[/"バッファサイズ<br/>（後述）"/]
+  windowSize-->CreateWindow
+  rtSize-->DXGI_SWAP_CHAIN_DESC
 
-  IDXGIAdapter & DXGI_SWAP_CHAIN_DESC
-  --->D3D11CreateDeviceAndSwapChain[[D3D11CreateDeviceAndSwapChain]]
-  --->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
+  DXGI_SWAP_CHAIN_DESC
+  -->D3D11CreateDeviceAndSwapChain
+  -->ID3D11Device[/"ID3D11Device"/] & IDXGISwapChain[/"IDXGISwapChain"/]
 
-  ID3D11Device[/"ID3D11Device"/]
-  -->ID3D11Device.CreateTexture2D[["CreateTexture2D"]]
-  rawImage[/"WICで取得した画像データとサイズ<br/>(BYTE[],UINT,UINT)"/] & ID3D11Device.CreateTexture2D
+  ID3D11Device
+  ---ID3D11Device.CreateTexture2D[["CreateTexture2D"]]
+  rawImage[/"画像データ(BYTE[])<br/>及びサイズ"/] & ID3D11Device.CreateTexture2D
   -->ID3D11Texture2D[/"VRAM上の画像<br/>(ID3D11Texture2D)"/]
   -->cuGraphicsD3D11RegisterResource_image[["cuGraphicsD3D11RegisterResource"]]
   -->sourceCUgraphicsResource[/"VRAM上の画像<br/>(CUgraphicsResource)"/]
 
   IDXGISwapChain
-  -->IDXGISwapChain.GetBuffer[["GetBufferで全てのバッファの参照を取得"]]
+  ---IDXGISwapChain.GetBuffer[["GetBufferで適当なバッファの参照を取得"]]
   -->buffers[/"バッファ<br/>(ID3D11Texture2D)"/]
   -->cuGraphicsD3D11RegisterResource_target[["cuGraphicsD3D11RegisterResource"]]
   -->targetCUgraphicsResource[/"バッファ<br/>(CUgraphicsResource)"/]
@@ -135,6 +156,10 @@ flowchart TD
     cuGraphicsD3D11RegisterResource_target
   end
 ```
+
+#### ウィンドウサイズとバッファサイズについて
+
+バッファサイズがレンダーターゲットウィンドウと異なる場合、表示の際に自動でフィットするように変形される。
 
 ### CUDA Driver APIでのptxの実行方法
 
@@ -158,7 +183,7 @@ flowchart TD
 
 ### リソースのCUDAでの使用方法
 
-Texture2Dに相当するcuArray間のコピーcuMemcpy2Dを使用しなければならない
+Texture2Dに相当するcuArray間のコピーにはcuMemcpy2Dを使用しなければならない
 
 ```mermaid
 flowchart TD
@@ -184,15 +209,6 @@ flowchart TD
   end
 ```
 
-### 表示処理
+### 処理内容の反映（画面への表示）
 
-```mermaid
-flowchart TD
-  drawStart[/"開始"\]-->kernel["画像を処理してバッファに書き込み"]
-  kernel-->present[["IDXGISwapChain.Present"]]
-  present-->drawEnd[\"終了"/]
-```
-
-### メインメモリへのデータの返却、WICでのエンコード
-
-WICは解像度情報も扱える
+IDXGISwapChain::Presentを呼び出せばよい。
