@@ -83,6 +83,10 @@ void EventHandler_WM_PAINT()
 {
 }
 
+void Templated_Dispose()
+{
+}
+
 // ほぼ参考資料通り
 // https://learn.microsoft.com/ja-jp/windows/win32/direct3d11/overviews-direct3d-11-resources-textures-how-to
 
@@ -115,7 +119,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
     // よくわからない
     CUcontext cu_context;
-    CreateCuContext(&cu_context,cu_device);
+    CreateCuContext(&cu_context, cu_device);
 
     // D3D11CreateDeviceAndSwapChainする
     CComPtr<IDXGISwapChain> m_swapChain;

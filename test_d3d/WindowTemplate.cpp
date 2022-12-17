@@ -75,6 +75,8 @@ __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
 
 __forceinline void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory);
 
+__forceinline void Templated_Dispose();
+
 __forceinline void EventHandler_WM_PAINT();
 
 LRESULT CALLBACK WindowProcW(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -142,6 +144,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     }
 
     // 終了処理
+    Templated_Dispose();
     CoUninitialize();
 
     return 0;
