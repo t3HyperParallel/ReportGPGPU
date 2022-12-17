@@ -128,8 +128,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     HRESULT_exit(CoInitializeEx(NULL, COINIT_APARTMENTTHREADED), L"CoInitialize");
     CComPtr<IDXGIFactory> m_DXGIFactory;
     HRESULT_exit(CreateDXGIFactory(IID_PPV_ARGS(&m_DXGIFactory)), L"CreateDXGIFactory");
-
     // ここまでCOM周り
+
     Templated_Init(hwnd, m_DXGIFactory);
 
     SetWindowTextW(hwnd, L"Template Window Class");
@@ -140,5 +140,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
+
+    // 終了処理
+    CoUninitialize();
+
     return 0;
 }
