@@ -209,6 +209,69 @@ flowchart TD
   end
 ```
 
+### Direct3D 11 Video Interfaces
+
+機能の中枢はID3D11VideoContextと思われる（以下、同クラスのドキュメントより）
+> This interface provides access to several areas of Microsoft Direct3D video functionality:
+>
+> + Hardware-accelerated video decoding
+> + Video processing
+> + GPU-based content protection
+> + Video encryption and decryption
+
+VDOVとはvideo decoder output viewの略らしい。
+
+DRM関連には以下のクラスがある
+
++ ID3D11AuthenticatedChannel
++ ID3D11CryptoSession
+
+
+```mermaid
+flowchart TD
+  ID3D11Device[/"ID3D11Device"/]
+  --"QueryInterface"-->ID3D11VideoDevice[/"ID3D11VideoDevice"/]
+
+
+  ID3D11VideoDevice
+  ---CreateVideoDecoder[["CreateVideoDecoder"]]
+  -->ID3D11VideoDecoder[/"ID3D11VideoDecoder"/]
+  ---CreateVideoDecoderOutputView[["VideoDecoderOutputView"]]
+  -->ID3D11VideoDecoderOutputView
+
+  ID3D11VideoDevice
+  ---GetVideoDecoderProfile[["GetVideoDecoderProfile"]]
+  --"適当なものを選択"-->decoderProfile[/"デコードプロファイル\n（GUID）"/]
+  ---D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC[/"D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC"/]
+  -->CreateVideoDecoderOutputView
+  D3D11_TEX2D_VDOV[/"D3D11_TEX2D_VDOV\nよくわからん"/]
+  ---D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC
+
+
+  ID3D11VideoDevice
+  ---CreateVideoProcessor[["CreateVideoProcessor"]]
+  -->ID3D11VideoProcessor[/"ID3D11VideoProcessor"/]
+
+
+  ID3D11VideoDevice
+  ---CreateVideoProcessorOutputView[["CreateVideoProcessorOutputView"]]
+  -->ID3D11VideoProcessorOutputView[/"ID3D11VideoProcessorOutputView"/]
+
+  ID3D11VideoDevice
+  ---CreateVideoProcessorEnumerator[["CreateVideoProcessorEnumerator"]]
+  -->ID3D11VideoProcessorEnumerator[/"ID3D11VideoProcessorEnumerator"/]
+  -->CreateVideoProcessorOutputView
+  ID3D11Resource[/"出力先サーフェス\nD3D11_BIND_RENDER_TARGETを指定した\n（ID3D11Resource）"/]
+  -->CreateVideoProcessorOutputView
+  D3D11_TEX2D_VPOV[/"D3D11_TEX2D_VPOV or\nD3D11_TEX2D_ARRAY_VPOV"/]
+  ---D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC[/"D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC"/]
+  -->CreateVideoProcessorOutputView
+
+
+  ID3D11DeviceContext[/"ID3D11DeviceContext"/]
+  --"QueryInterface"-->ID3D11VideoContext[/"ID3D11VideoContext"/]
+```
+
 ### 処理内容の反映（画面への表示）
 
 IDXGISwapChain::Presentを呼び出せばよい。
