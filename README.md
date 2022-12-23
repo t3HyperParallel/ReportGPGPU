@@ -61,6 +61,16 @@ flowchart TD
   cuInit[["cuInit"]]
 ```
 
+```mermaid
+sequenceDiagram
+  WinMain-)+COM: CoInitialize
+  deactivate COM
+  WinMain-)+CUDA: cuInitialize
+  deactivate CUDA
+  WinMain-)+COM: CoUninitialize
+  deactivate COM
+```
+
 ### WICでの画像の展開
 
 WICはファイルを生データ(BYTE\[\])に展開するまでを担当する。<br/>
@@ -254,18 +264,32 @@ flowchart TD
 
 
   ID3D11VideoDevice
+  ---CreateVideoProcessorEnumerator[["CreateVideoProcessorEnumerator"]]
+  -->ID3D11VideoProcessorEnumerator[/"ID3D11VideoProcessorEnumerator"/]
+
+  ID3D11VideoDevice
   ---CreateVideoProcessorOutputView[["CreateVideoProcessorOutputView"]]
   -->ID3D11VideoProcessorOutputView[/"ID3D11VideoProcessorOutputView"/]
 
-  ID3D11VideoDevice
-  ---CreateVideoProcessorEnumerator[["CreateVideoProcessorEnumerator"]]
-  -->ID3D11VideoProcessorEnumerator[/"ID3D11VideoProcessorEnumerator"/]
+  ID3D11Resource_output[/"出力先サーフェス\n（D3D11_BIND_RENDER_TARGET\nを指定したID3D11Resource）"/]
   -->CreateVideoProcessorOutputView
-  ID3D11Resource[/"出力先サーフェス\nD3D11_BIND_RENDER_TARGETを指定した\n（ID3D11Resource）"/]
+  ID3D11VideoProcessorEnumerator
   -->CreateVideoProcessorOutputView
   D3D11_TEX2D_VPOV[/"D3D11_TEX2D_VPOV or\nD3D11_TEX2D_ARRAY_VPOV"/]
   ---D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC[/"D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC"/]
   -->CreateVideoProcessorOutputView
+
+  ID3D11VideoDevice
+  ---CreateVideoProcessorInputView[["CreateVideoProcessorInputView"]]
+  -->ID3D11VideoProcessorInputView[/"ID3D11VideoProcessorInputView"/]
+
+  ID3D11Resource_input[/"入力元サーフェス\n（ID3D11Resource）"/]
+  -->CreateVideoProcessorInputView
+  ID3D11VideoProcessorEnumerator
+  -->CreateVideoProcessorInputView
+  D3D11_TEX2D_VPIV[/"D3D11_TEX2D_VPIV\nよくわからん"/]
+  ---D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC[/""D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC/]
+  -->CreateVideoProcessorInputView
 
 
   ID3D11DeviceContext[/"ID3D11DeviceContext"/]
