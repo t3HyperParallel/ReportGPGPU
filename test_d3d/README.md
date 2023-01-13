@@ -88,5 +88,6 @@ CUDAの標準ライブラリにはGraphics Interoperabilityと称しグラフィ
 
 MFTEnumExを使用するテスト
 
-使用フィールド制限なしで使用可能なハードウェアMFTの名前を列挙する。
-筆者環境ではCPUのものとGPUのものが列挙された。
+使用フィールド制限なしで使用可能なハードウェアMFTの名前とMF_SA_D3D11_AWARE属性の値を列挙する。
+MF_SA_D3D11_AWAREが1（即ちTRUE）であれば、そのMFTはDirect3D11デバイスである。
+筆者環境ではCPUのものとGPUのものが列挙され、MF_SA_D3D11_AWAREはいずれも1であった。
