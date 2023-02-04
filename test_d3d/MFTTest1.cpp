@@ -58,6 +58,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
             apMFTActivate[index]->GetString(
                 MFT_FRIENDLY_NAME_Attribute, mftName, mftName_arraySize, &mftName_stringEnd),
             L"IMFActive::GetString");
+
         // MFTを取得
         CComPtr<IMFTransform> m_mft;
         HRESULT_exit(
