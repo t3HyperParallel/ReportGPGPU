@@ -86,6 +86,9 @@ CUDAの標準ライブラリにはGraphics Interoperabilityと称しグラフィ
 
 ### MFTTest1.cpp
 
+動画再生にはMedia Foundationを使用する必要がある。
+Media Foundationの静的ライブラリはmfplat.libである
+
 MFTEnumExを使用するテスト
 
 使用フィールド制限なしで使用可能なハードウェアMFTの名前とMF_SA_D3D11_AWARE属性の値を列挙する。
