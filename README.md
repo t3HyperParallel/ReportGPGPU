@@ -8,8 +8,6 @@ TeslaはHPC専用で映像出せないからあっても無意味
 
 ## やること
 
-このリポジトリ自体は教科書の体ににするつもり
-
 + GPGPUに関する説明（超簡単に）
 + 開発システムの導入の説明
 + GPUデバイスコードプログラミングについて
@@ -186,7 +184,7 @@ flowchart TD
 
   CUmodule-->cuModuleGetFunction[["関数名を指定して<br/>cuModuleGetFunction"]]
   cuModuleGetFunction-->CUfunction[/"CUfunction"/]
-  args[/"カーネルの引数とする<br/>デバイスポインタの配列"/]
+  args[/"配列先頭のポインタ or<br/>cudaTextureObject or<br/>cudaSurfaceObject"/]
   g_tb[/"gridとthread blockのサイズ"/]
   CUfunction & args & g_tb-->cuLaunchKernel[["cuLaunchKernelもしくは<br/>cuLaunchKernelEx"]]
 ```
@@ -194,6 +192,7 @@ flowchart TD
 ### リソースのCUDAでの使用方法
 
 Texture2Dに相当するcuArray間のコピーにはcuMemcpy2Dを使用しなければならない
+CUarrayにカーネルからアクセスするにはTexture Object APIかSurface Object APIが必要
 
 ```mermaid
 flowchart TD
@@ -217,6 +216,110 @@ flowchart TD
     cuGraphicsResourceGetMappedMipmappedArray
     CUmipmappedArray
   end
+```
+
+### Texture Object API
+
+Texture Object APIを利用するとfloatで座標を指定してアクセスできる。
+
+```mermaid
+graph TD
+  CUarray[/CUarray or<br/>CUmipmappedArray/]
+  -->CUDA_RESOURCE_DESC[/"CUDA_RESOURCE_DESC"/]
+  CUDA_TEXTURE_DESC[/"CUDA_TEXTURE_DESC"/]
+  CUDA_RESOURCE_VIEW_DESC[/"CUDA_RESOURCE_VIEW_DESC<br/>[optional]"/]
+
+  CUDA_RESOURCE_DESC & CUDA_TEXTURE_DESC & CUDA_RESOURCE_VIEW_DESC
+  -->cuTexObjectCreate[["cuTexObjectCreate"]]
+  -->CUtexObject[/"CUtexObject"/]
+  ---cuTexObjectDestroy[["cuTexObjectDestroy"]]
+```
+
+### Surface Object API
+
+Surface Object APIを利用するとintで座標を指定してアクセスできる
+
+```mermaid
+graph TD
+  CUarray[/"CUarray"/]
+  -->CUDA_RESOURCE_DESC[/"CUDA_RESOURCE_DESC"/]
+  -->cuSurfObjectCreate[["cuSurfObjectCreate"]]
+  -->CUsurfaceObject[/"CUsurfaceObject"/]
+  -->cuSurfObjectDestroy[["cuSurfObjectDestroy"]]
+```
+
+### Media Foundation
+
+IMFMediaSessionで再生コントロールを行う。
+Media Foundationは非同期であるため、CoInitializeも非同期にすべき
+
+#### メディアソースの生成
+
+ストリームを複数使用する場合はストリームの数に合わせてノードを作成する
+
+```mermaid
+graph TD
+  MFCreateSourceResolver[["MFCreateSourceResolver"]]
+  -->IMFResourceResolver[/"IMFResourceResolver"/]
+  ---CreateObjectFromXXX["CreateObject系メソッド"]
+  --"IUnknownで渡されるので<br/>QueryInterface"-->IMFMediaSource[/"IMFMediaSource"/]
+  ---CreateIMFPresentationDescriptor[["CreateIMFPresentationDescriptor"]]
+  -->IMFPresentationDescriptor[/"IMFPresentationDescriptor"/]
+  ---GetStreamDescriptorByIndex["GetStreamDescriptorByIndexから<br/>適当なものを選択"]
+  -->IMFStreamDescriptor[/"IMFStreamDescriptor"/]
+
+  resource[/"動画ファイル"/]-->CreateObjectFromXXX
+
+  MFCreateTopologyNode[["MFCreateTopologyNode"]]
+  --"MF_TOPOLOGY_SOURCESTREAM_NODEを指定"-->
+    node_source[/"IMFTopologyNode<br/>（ソースノード）"/]
+  ---SetUnknown[["SetUnknown"]]
+
+  IMFMediaSource--"MF_TOPONODE_SOURCE"-->SetUnknown
+  IMFPresentationDescriptor--"MF_TOPONODE_PRESENTATION_DESCRIPTOR"-->SetUnknown
+  IMFStreamDescriptor--"MF_TOPONODE_STREAM_DESCRIPTOR"-->SetUnknown
+```
+
+#### デコーダーのMFT/ノードの作成
+
+SetObjectを用いることに留意
+
+IMFTransform::
+
+```mermaid
+graph TD
+  MFTEnumEx[["MFTEnumEx"]]
+  --"適当なものを選択"-->IMFTActivate[/"MFTActivate"/]
+  --"使用終了後に<br/>ShutdownObject"---ActivateObject[["ActivateObject"]]
+  --"IIDを指定して取り出す"-->IMFTransform
+
+  MFCreateTopologyNode[["MFCreateTopologyNode"]]
+  --"MF_TOPOLOGY_TRANSFORM_NODEを指定"-->
+    node_transform[/"IMFTopologyNode<br/>（変換ノード）"/]
+  ---SetObject[["SetObject"]]
+
+  IMFTActivate-.->SetObject
+  IMFTransform-->SetObject
+```
+
+#### トポロジとセッションの生成
+
+```mermaid
+graph TD
+  MFCreateTopology[["MFCreateTopology"]]
+  -->IMFTopology[/"IMFTopology"/]
+  ---AddNode[["AddNode"]]
+
+  node_source[/"IMFTopologyNode<br/>（ソースノード）"/]
+  node_transform[/"IMFTopologyNode<br/>（変換ノード）"/]
+  node_source & node_transform-->AddNode
+  node_source---ConnectOutput_source[["ConnectOutPut"]]
+  node_transform-->ConnectOutput_source
+
+  MFCreateMediaSession[["MFCreateMediaSession"]]
+  -->IMFMediaSession[/"IMFMediaSession"/]
+  ---SetTopology[["SetTopology"]]
+  IMFTopology-->SetTopology
 ```
 
 ### Direct3D 11 Video Interfaces
@@ -291,8 +394,9 @@ flowchart TD
   ---D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC[/""D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC/]
   -->CreateVideoProcessorInputView
 
-
-  ID3D11DeviceContext[/"ID3D11DeviceContext"/]
+  ID3D11Device
+  ---GetImmediateContext[["GetImmediateContext"]]
+  -->ID3D11DeviceContext[/"ID3D11DeviceContext"/]
   --"QueryInterface"-->ID3D11VideoContext[/"ID3D11VideoContext"/]
 ```
 
