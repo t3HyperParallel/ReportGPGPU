@@ -102,8 +102,8 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
             m_frame->GetSize(&siWidth, &siHeight),
             L"GetSize");
     }
-    size_t buffer_memPitch = siWidth * 4;
-    size_t buffer_size = buffer_memPitch * siHeight;
+    const size_t buffer_memPitch = siWidth * 4;
+    const size_t buffer_size = buffer_memPitch * siHeight;
     std::unique_ptr<BYTE[]> m_buffer = std::make_unique<BYTE[]>(siWidth * siHeight * 4);
     {
         HRESULT_exit(
