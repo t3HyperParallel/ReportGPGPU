@@ -102,13 +102,15 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
             m_frame->GetSize(&siWidth, &siHeight),
             L"GetSize");
     }
+    size_t buffer_memPitch = siWidth * 4;
+    size_t buffer_size = buffer_memPitch * siHeight;
     std::unique_ptr<BYTE[]> m_buffer = std::make_unique<BYTE[]>(siWidth * siHeight * 4);
     {
         HRESULT_exit(
             m_frame->CopyPixels(
                 NULL,
-                siWidth * 4, // ストライド：1行あたりのデータ量(byte)
-                siWidth * siHeight * 4,
+                buffer_memPitch, // ストライド：1行あたりのデータ量(byte)
+                buffer_size,
                 m_buffer.get()),
             L"CopyPixels");
     }
@@ -178,7 +180,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
 
         D3D11_SUBRESOURCE_DATA subresource = {0};
         subresource.pSysMem = m_buffer.get();
-        subresource.SysMemPitch = siWidth * 4; // 要はストライド
+        subresource.SysMemPitch = buffer_memPitch; // 要はストライド
         // subresource.SysMemSlicePitch; // 3Dテクスチャで使われる
 
         HRESULT_exit(
