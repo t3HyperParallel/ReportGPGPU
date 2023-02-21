@@ -20,9 +20,9 @@
 	.param .u32 color24bitTo32bit_param_4
 )
 {
-	.reg .pred 	%p<4>;
-	.reg .b16 	%rs<5>;
-	.reg .b32 	%r<16>;
+	.reg .pred 	%p<5>;
+	.reg .b16 	%rs<6>;
+	.reg .b32 	%r<17>;
 	.reg .b64 	%rd<10>;
 
 
@@ -56,10 +56,13 @@
 	cvt.u64.u32 	%rd8, %r15;
 	add.s64 	%rd9, %rd3, %rd8;
 	ld.global.u8 	%rs1, [%rd5];
-	ld.global.u8 	%rs2, [%rd7];
-	ld.global.u8 	%rs3, [%rd9];
-	mov.u16 	%rs4, 0;
-	sust.b.2d.v4.b8.trap 	[%rd1, {%r1, %r2}], {%rs1, %rs2, %rs3, %rs4};
+	setp.gt.u32 	%p4, %r2, 148;
+	selp.b16 	%rs2, 255, %rs1, %p4;
+	ld.global.u8 	%rs3, [%rd7];
+	ld.global.u8 	%rs4, [%rd9];
+	shl.b32 	%r16, %r1, 2;
+	mov.u16 	%rs5, 0;
+	sust.b.2d.v4.b8.trap 	[%rd1, {%r16, %r2}], {%rs2, %rs3, %rs4, %rs5};
 
 $L__BB0_2:
 	ret;

@@ -19,7 +19,10 @@ extern "C"
             data.x = src[srcidx * 3];
             data.y = src[srcidx * 3 + 1];
             data.z = src[srcidx * 3 + 2];
-            surf2Dwrite<char4>(data, dst, x, y);
+            data.w = 0;
+            if(y>148)data.x=-1;
+            surf2Dwrite<char4>(data, dst, x * 4, y);
+            // surf2Dwriteのxはバイト位置なので構造体サイズを乗算する必要がある
         }
     }
     /// @brief 画像をレンチキュラー化するやつ
