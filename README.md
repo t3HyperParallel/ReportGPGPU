@@ -174,6 +174,9 @@ flowchart TD
 cuModuleLoadExはJITに関する設定を付与できる<br/>
 cuLaunchKernelExは矩形情報を構造体で受け取るので同じ設定を使い回す際に有利
 
+CUDA C/C++はデフォルトでC++扱いであり、C++では関数名はマングル化される。
+この場合cuModuleGetFunctionに指定する関数名はptxファイル中に出力されたものにする必要がある。
+
 ```mermaid
 flowchart TD
   ptx[/"ptxファイル"/]-->cuModuleLoad[["ファイル名を指定して<br/>cuModuleLoad"]]

@@ -1,9 +1,35 @@
-# MediaFoundationの使用に関するダイアグラム
+# Media Foundation と Media Session
 
-Media Foundationの使用方法についてダイアグラムでまとめてある（途中）
+Media Foundationのメディアセッションの使用方法についてダイアグラムでまとめてある（途中）
+
+## 概要
+
+参考: <https://learn.microsoft.com/ja-jp/windows/win32/medfound/overview-of-the-media-foundation-architecture>
+
+Media Foundationは動画・音声を取り扱う仕組みであり、そのアーキテクチャは2種類ある。
+いずれもコーデックや変換などの処理をメディアソースからメディアシンクまでのパイプラインとしてモデル化ていて、アプリケーションの外部にメディアセッションを構築してアプリケーションから制御するものとアプリケーションをデータフローの一部にするものがあるが、ここでは前者を取り扱う。
+
+メディアソース、メディアシンク、その間にあるMF Transform(MFT)からなる
+トポロジを生成してセッションに登録する。
+
+MF変換にはDirect3D9/11/12連携機能が用意されている。
+今回はDirect3D11を用いる。
+
+参考: <https://learn.microsoft.com/ja-jp/windows/win32/medfound/supporting-direct3d-11-video-decoding-in-media-foundation>
 
 mermaid sequenceDiagramには生成/消失が存在しないのでご容赦
 例外処理などは省いている
+
+```mermaid
+flowchart TD
+    start_MF["Media Foundationの起動"]
+    -->create_src["動画ファイルからメディアソースを作成"]
+    -->create_topo["メディアソースからトポロジを作成"]
+    -->create_session["メディアセッションを作成、トポロジを設定"]
+    -->get_event["セッションからイベントを取得"]
+    -->use["セッションの使用"]
+    -->dispose["開放"]
+```
 
 ## Media Foundationの初期化・終了
 
