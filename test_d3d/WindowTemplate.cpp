@@ -68,7 +68,7 @@ __inline void CUresult_exit(CUresult cr, LPCWSTR errorAt)
             MultiByteToWideChar(CP_ACP, 0, errName, -1, errWName, 128);
         }
         WCHAR mes[512];
-        wsprintf(mes, L"CUresult %i=%s\nat %s\n\n%s", cr,errWName, errorAt, errWStr);
+        wsprintf(mes, L"CUresult %i=%s\nat %s\n\n%s", cr, errWName, errorAt, errWStr);
         MesExit(mes, cr);
     }
 }
@@ -100,7 +100,6 @@ const wchar_t CLASS_NAME[] = L"CLASS_RND_36589";
 // signedかunsignedか不明なことがあるためマクロで用意
 #define SAMPLE_X 640
 #define SAMPLE_Y 480
-#define SAMPLE_X_Y SAMPLE_X, SAMPLE_Y
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 {
@@ -110,12 +109,28 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
     wc.lpszClassName = CLASS_NAME;
     if (RegisterClassW(&wc))
         GetLastError_exit(L"RegisterClass");
+
+    // クライアント領域からウィンドウサイズを計算
+    // うっかりクライアントサイズとウィンドウサイズを間違えがちなことに注意
+    RECT windowRect;
+    const DWORD windowStyle = WS_OVERLAPPEDWINDOW;
+    {
+        windowRect.left = 64;
+        windowRect.right = windowRect.left + SAMPLE_X;
+        windowRect.top = 64;
+        windowRect.bottom = windowRect.top + SAMPLE_Y;
+        if (AdjustWindowRect(&windowRect, windowStyle, FALSE))
+            GetLastError_exit(L"AdjustWindowRect");
+    }
+    const LONG windowWidth = windowRect.right - windowRect.left;
+    const LONG windowHeight = windowRect.bottom - windowRect.top;
+
     HWND hwnd = CreateWindowExW(
         0,
         CLASS_NAME,
         L"オマチクタ゛サイ",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, SAMPLE_X, SAMPLE_Y,
+        windowStyle,
+        CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight,
         NULL,
         NULL,
         hInstance,
