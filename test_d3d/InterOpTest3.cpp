@@ -1,4 +1,5 @@
 ﻿#include "WindowTemplate.cpp"
+#include "lenti.h"
 
 #include <wincodec.h>
 #include <memory>
@@ -214,7 +215,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         L"cuModuleLoad");
     CUfunction cu_f_color24bitTo32bit;
     CUresult_exit(
-        cuModuleGetFunction(&cu_f_color24bitTo32bit, cu_module, "color24bitTo32bit"),
+        cuModuleGetFunction(&cu_f_color24bitTo32bit, cu_module, COLOR24BITTO32BIT_NAME),
         L"cuModuleGetFunction");
 
     // カーネル実行

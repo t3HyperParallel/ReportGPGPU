@@ -134,7 +134,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         scDesc.BufferDesc.Width = SAMPLE_X;
         scDesc.BufferDesc.Height = SAMPLE_Y;
         // scDesc.BufferDesc.RefreshRate
-        scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        scDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         // scDesc.BufferDesc.ScanlineOrdering
         // scDesc.BufferDesc.Scaling
         scDesc.SampleDesc.Count = 1;
@@ -170,7 +170,7 @@ void Templated_Init(HWND hwnd, IDXGIFactory *pDXGIFactory)
         texDesc.Height = SAMPLE_Y;
         texDesc.MipLevels = 1;                       // ミップマップをしないならレベルは1つ
         texDesc.ArraySize = 1;                       // よくわからないが最低は1らしい、名前的にそう
-        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // 変わるかも
+        texDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // 変わるかも
         texDesc.SampleDesc.Count = 1;
         texDesc.SampleDesc.Quality = 0;
         texDesc.Usage = D3D11_USAGE_IMMUTABLE;          // 変わるかも

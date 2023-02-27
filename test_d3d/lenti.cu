@@ -1,4 +1,7 @@
 ﻿
+// 関数名定義S
+#include "lenti.h"
+
 extern "C"
 {
     /// @brief アルファチャンネルを加えて24bitを32bitにするやつ
@@ -6,7 +9,7 @@ extern "C"
     /// @param src 元データ
     /// @param memPitch ストライド
     /// @return
-    __global__ void color24bitTo32bit(
+    __global__ void COLOR24BITTO32BIT(
         cudaSurfaceObject_t dst, const char *src, unsigned int memPitch,
         unsigned int width, unsigned int height)
     {
@@ -20,8 +23,7 @@ extern "C"
             data.y = src[srcidx * 3 + 1];
             data.z = src[srcidx * 3 + 2];
             data.w = 0;
-            if(y>148)data.x=-1;
-            surf2Dwrite<char4>(data, dst, x * 4, y);
+            surf2Dwrite<char4>(data, dst, x * sizeof(char4), y);
             // surf2Dwriteのxはバイト位置なので構造体サイズを乗算する必要がある
         }
     }
@@ -30,7 +32,7 @@ extern "C"
     /// @param src ソース画像
     /// @param srcidx ソース画像の左から数えた番号
     /// @param srccnt ソース画像の数
-    __global__ void writeLenti(
+    __global__ void WRITELENTI(
         cudaSurfaceObject_t dst,
         cudaSurfaceObject_t src,
         int srcidx,
